@@ -1,6 +1,6 @@
 import { test, before } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -24,6 +24,27 @@ function mdview(...args) {
     encoding: "utf8",
   });
   return { status: res.status, out: res.stdout, err: res.stderr };
+}
+
+/** Starts a CLI process without waiting for it. `done` resolves with its status and output. */
+function mdviewInBackground(...args) {
+  const child = spawn(process.execPath, ["--disable-warning=ExperimentalWarning", BIN, "comments", ...args], { cwd: dir, env });
+  let out = "";
+  let err = "";
+  child.stdout.on("data", (chunk) => (out += chunk));
+  child.stderr.on("data", (chunk) => (err += chunk));
+  return {
+    output: () => out,
+    done: new Promise((resolve) => child.on("close", (status) => resolve({ status, out, err }))),
+  };
+}
+
+async function until(check, timeoutMs = 5000) {
+  const deadline = Date.now() + timeoutMs;
+  while (!check()) {
+    if (Date.now() > deadline) throw new Error("timed out waiting");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
 }
 
 async function writeDoc(name, content) {
@@ -70,6 +91,33 @@ test("threads on later versions say whether their block survived", async () => {
   assert.match(out, /versions\.md · v2 · 2 open/);
   assert.match(out, new RegExp(`#${kept} open · waiting on agent · line 1 · from v1, block unchanged`));
   assert.match(out, new RegExp(`#${changed} open · waiting on agent · outdated: made on v1, block changed since \\(was line 3\\)`));
+});
+
+test("show says what an outdated block now reads", async () => {
+  const doc = await writeDoc("now.md", "Retries never happen on a 4xx.\n");
+  const id = startedId(mdview("add", doc, "--human", "--line", "1", "-m", "What about 429?"));
+  await writeDoc("now.md", "Retries never happen on a 4xx, except a 429.\n");
+
+  const { out } = mdview("show", String(id));
+
+  assert.match(out, /Block in v1, line 1:\n {4}Retries never happen on a 4xx\.\n/);
+  assert.match(out, /Now reads, in v2, line 1:\n {4}Retries never happen on a 4xx, except a 429\./);
+});
+
+test("wait returns when the human writes, and exits 3 at its timeout", async () => {
+  const doc = await writeDoc("wait.md", "Waiting text.\n");
+  const waiting = mdviewInBackground("wait", doc, "--interval", "1s", "--timeout", "20s");
+  await until(() => waiting.output().includes("{next:1s}"));
+
+  startedId(mdview("add", doc, "--human", "--line", "1", "-m", "Are you there?"));
+  const woke = await waiting.done;
+  const timedOut = mdview("wait", doc, "--interval", "1s", "--timeout", "1s");
+
+  assert.equal(woke.status, 0, woke.err);
+  assert.match(woke.out, /^no new comments on wait\.md \{next:1s\}$/m);
+  assert.match(woke.out, /New comments on wait\.md:[\s\S]*adam \(.*\): Are you there\?/);
+  assert.equal(timedOut.status, 3);
+  assert.match(timedOut.out, /No new comments on wait\.md after 1s\./);
 });
 
 test("--json prints the thread views", async () => {

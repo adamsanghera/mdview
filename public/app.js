@@ -13,11 +13,14 @@ const state = {
   headings: [],
   events: null,
   expanded: new Set(readJson("mdview.expanded", [])),
+  viewVersion: null,
   comments: {
     enabled: false,
     threads: [],
     version: null,
     ranges: new Map(),
+    nowRanges: new Map(),
+    activateAfterLoad: null,
     active: null,
     listMode: false,
     drafts: new Map(),
@@ -44,6 +47,11 @@ function relFromPathname(pathname) {
   } catch {
     return "";
   }
+}
+
+/** The stored version a URL asks for (?v=3), or null for the file as it is now. */
+function versionFromSearch(search) {
+  return Number(new URLSearchParams(search).get("v")) || null;
 }
 
 function escapeHtml(text) {
@@ -289,10 +297,15 @@ function scrollToHash(hash, behavior = "smooth") {
   document.getElementById(id)?.scrollIntoView({ behavior, block: "start" });
 }
 
-async function loadDoc(rel, { keepScroll = false, hash = location.hash } = {}) {
+function versionBanner(doc) {
+  return `<div class="version-banner">You are reading v${doc.version.seq} of ${doc.version.latestSeq}, as it stood ${ago(doc.mtimeMs)}. Comments made after it are hidden. <a href="/view/${encodePath(doc.path)}">Back to the latest</a></div>`;
+}
+
+async function loadDoc(rel, { keepScroll = false, hash = location.hash, version = state.viewVersion } = {}) {
   let doc;
+  $("#versions-menu").hidden = true;
   try {
-    doc = await getJson(`/api/doc?path=${encodeURIComponent(rel)}`);
+    doc = await getJson(`/api/doc?path=${encodeURIComponent(rel)}${version ? `&v=${version}` : ""}`);
   } catch (err) {
     showError(rel, err);
     return;
@@ -305,12 +318,14 @@ async function loadDoc(rel, { keepScroll = false, hash = location.hash } = {}) {
   const scrollY = window.scrollY;
   const sameDoc = state.doc?.path === doc.path;
   state.doc = doc;
+  state.viewVersion = doc.old ? doc.version.seq : null;
   if (!sameDoc) resetComments();
-  const canonical = `/view/${encodePath(doc.path)}${hash || ""}`;
-  if (location.pathname + location.hash !== canonical) history.replaceState(null, "", canonical);
+  const canonical = `/view/${encodePath(doc.path)}${state.viewVersion ? `?v=${state.viewVersion}` : ""}${hash || ""}`;
+  if (location.pathname + location.search + location.hash !== canonical) history.replaceState(null, "", canonical);
 
   const article = $("#doc");
-  article.innerHTML = (doc.frontMatter ? renderFrontMatter(doc.frontMatter) : "") + doc.html;
+  article.innerHTML =
+    (doc.old ? versionBanner(doc) : "") + (doc.frontMatter ? renderFrontMatter(doc.frontMatter) : "") + doc.html;
   forgetRanges();
   enhance(article);
   renderToc(doc.toc);
@@ -362,14 +377,14 @@ function watch(rel) {
 
 function navigate(url) {
   const rel = relFromPathname(url.pathname);
-  if (rel === state.doc?.path) {
-    history.pushState(null, "", url.hash || url.pathname);
+  const version = versionFromSearch(url.search);
+  history.pushState(null, "", url.pathname + url.search + url.hash);
+  if (rel === state.doc?.path && version === state.viewVersion) {
     scrollToHash(url.hash);
     return;
   }
-  history.pushState(null, "", url.pathname + url.hash);
   root.classList.remove("sidebar-open");
-  loadDoc(rel, { hash: url.hash });
+  loadDoc(rel, { hash: url.hash, version });
 }
 
 document.addEventListener("click", (event) => {
@@ -390,8 +405,9 @@ document.addEventListener("click", (event) => {
 
 addEventListener("popstate", () => {
   const rel = relFromPathname(location.pathname);
-  if (rel === state.doc?.path) scrollToHash(location.hash);
-  else loadDoc(rel);
+  const version = versionFromSearch(location.search);
+  if (rel === state.doc?.path && version === state.viewVersion) scrollToHash(location.hash);
+  else loadDoc(rel, { version });
 });
 
 /* Scroll: reading progress and the current section */
@@ -441,7 +457,7 @@ addEventListener("keydown", (event) => {
     event.preventDefault();
     openComposer();
   } else if (event.key === "Escape" && !typing) {
-    if (!closeComposer() && !deactivate()) root.classList.remove("drawer-open");
+    if (!closeComposer() && !closeVersionsMenu() && !deactivate()) root.classList.remove("drawer-open");
   } else if (event.key === "/" && !typing) {
     event.preventDefault();
     showSidebar();
@@ -474,8 +490,9 @@ const CARD_GAP_PX = 10;
 const DECORATIONS = ".heading-anchor, .code-copy";
 const HIGHLIGHTS =
   "highlights" in CSS
-    ? { open: new Highlight(), suggested: new Highlight(), active: new Highlight(), pending: new Highlight() }
+    ? { open: new Highlight(), suggested: new Highlight(), active: new Highlight(), pending: new Highlight(), now: new Highlight() }
     : null;
+const NOW_READS_PREVIEW_CHARS = 140;
 
 // The list view's sections, in order. Each thread goes in the first one that takes it.
 const GROUPS = [
@@ -632,6 +649,9 @@ async function loadComments() {
   comments.threads = data.threads;
   comments.version = data.version;
   renderComments();
+  const pending = comments.activateAfterLoad;
+  comments.activateAfterLoad = null;
+  if (pending !== null && threadById(pending)) activate(pending, { scroll: true });
 }
 
 function resetComments() {
@@ -648,16 +668,20 @@ function resetComments() {
 /** Drops highlights that point into a document that was just replaced. */
 function forgetRanges() {
   state.comments.ranges = new Map();
+  state.comments.nowRanges = new Map();
   paintHighlights();
 }
 
 function renderComments() {
   const comments = state.comments;
   comments.ranges = new Map();
+  comments.nowRanges = new Map();
   for (const thread of comments.threads) {
-    if (thread.blockIndex === null || thread.status === "resolved") continue;
-    const range = rangeFor(thread);
+    if (thread.status === "resolved") continue;
+    const range = thread.blockIndex !== null && rangeFor(thread);
     if (range) comments.ranges.set(thread.id, range);
+    const now = thread.nowReads && rangeFor({ blockIndex: thread.nowReads.blockIndex, quote: "", start: 0 });
+    if (now) comments.nowRanges.set(thread.id, now);
   }
   if (comments.active !== null && !threadById(comments.active)) comments.active = null;
   updateRailMode();
@@ -674,6 +698,8 @@ function paintHighlights() {
     HIGHLIGHTS[threadById(id)?.status === "suggested" ? "suggested" : "open"].add(range);
     if (id === comments.active) HIGHLIGHTS.active.add(range);
   }
+  const now = comments.nowRanges.get(comments.active);
+  if (now) HIGHLIGHTS.now.add(now);
   if (comments.pending) HIGHLIGHTS.pending.add(comments.pending.range);
 }
 
@@ -687,11 +713,46 @@ function renderCommentChrome() {
   button.title = `${unresolved.length} unresolved, ${waiting} waiting on you`;
   $("#comments-count").textContent = unresolved.length || "";
   const chip = $("#version");
-  chip.hidden = !comments.version;
-  if (comments.version) {
-    chip.textContent = `v${comments.version.seq}`;
-    chip.title = `Version ${comments.version.seq} of this doc. Each comment remembers the version it was made on.`;
+  const version = comments.version;
+  chip.hidden = !version;
+  if (version) {
+    const old = version.seq !== version.latestSeq;
+    chip.textContent = old ? `v${version.seq} of ${version.latestSeq}` : `v${version.seq}`;
+    chip.classList.toggle("old", old);
+    chip.title = `Version ${version.seq} of this doc. Each comment remembers the version it was made on. Click for every version.`;
   }
+}
+
+async function toggleVersionsMenu() {
+  if (closeVersionsMenu() || !state.doc) return;
+  const doc = state.doc;
+  let versions;
+  try {
+    ({ versions } = await getJson(`/api/versions?path=${encodeURIComponent(doc.path)}`));
+  } catch (err) {
+    toast(err.message);
+    return;
+  }
+  const viewing = state.viewVersion ?? versions[0]?.seq;
+  const menu = $("#versions-menu");
+  menu.innerHTML = versions
+    .map((v, i) => {
+      const href = `/view/${encodePath(doc.path)}${i === 0 ? "" : `?v=${v.seq}`}`;
+      const notes = [i === 0 && "latest", ago(Date.parse(v.observedAt)), v.threads && `${v.threads} new comment${v.threads === 1 ? "" : "s"}`];
+      return `<a href="${href}"${v.seq === viewing ? ' class="here"' : ""}><span>v${v.seq}</span><span class="notes">${notes.filter(Boolean).join(" · ")}</span></a>`;
+    })
+    .join("");
+  menu.hidden = false;
+  const chip = $("#version").getBoundingClientRect();
+  menu.style.top = `${chip.bottom + 6}px`;
+  menu.style.left = `${Math.max(8, Math.min(chip.left, innerWidth - menu.offsetWidth - 8))}px`;
+}
+
+function closeVersionsMenu() {
+  const menu = $("#versions-menu");
+  if (menu.hidden) return false;
+  menu.hidden = true;
+  return true;
 }
 
 /** Docks the rail beside the doc when there is room for both. Otherwise it opens as a drawer. */
@@ -743,6 +804,20 @@ function threadControls(t) {
     <div class="thread-actions">${reopen}${resolve}</div>`;
 }
 
+/** For an outdated thread: what its text became, and a link to the version it was made on. */
+function nowReads(t) {
+  if (t.state !== "outdated") return "";
+  const text = t.nowReads
+    ? `<strong>Now reads:</strong> ${escapeHtml(truncate(t.nowReads.source.replace(/\s+/g, " "), NOW_READS_PREVIEW_CHARS))}`
+    : "<strong>Its text was removed or rewritten.</strong>";
+  const link = `<a href="/view/${encodePath(state.doc.path)}?v=${t.madeOn.seq}" data-thread-link="${t.id}">View in v${t.madeOn.seq}</a>`;
+  return `<p class="now-reads">${text} ${link}</p>`;
+}
+
+function truncate(text, max) {
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
+
 /** A thread card. Collapsed cards show the first and last messages; the open card shows all of them and its controls. */
 function threadCard(t, expanded) {
   const shown = expanded || t.messages.length <= 2 ? t.messages : [t.messages[0], t.messages.at(-1)];
@@ -753,6 +828,7 @@ function threadCard(t, expanded) {
   return `<section class="thread${expanded ? " expanded" : ""}" data-thread="${t.id}" data-status="${t.status}">
     <header class="thread-head"><span class="thread-id">#${t.id}</span>${threadChips(t)}</header>
     ${quote}
+    ${nowReads(t)}
     <ol class="messages">${items.join("")}</ol>
     ${expanded ? threadControls(t) : ""}
   </section>`;
@@ -867,7 +943,7 @@ function activate(id, { scroll = false } = {}) {
   if (!root.classList.contains("rail-docked")) root.classList.add("drawer-open");
   renderRail();
   paintHighlights();
-  const range = comments.ranges.get(id);
+  const range = comments.ranges.get(id) ?? comments.nowRanges.get(id);
   if (scroll && range) {
     const rect = range.getBoundingClientRect();
     if (rect.top < SPY_OFFSET_PX || rect.bottom > innerHeight) scrollBy({ top: rect.top - innerHeight / 3, behavior: "smooth" });
@@ -991,7 +1067,11 @@ function initComments() {
   rail.addEventListener("click", (event) => {
     const action = event.target.closest("[data-action]")?.dataset.action;
     const card = event.target.closest(".thread");
-    if (action === "list") {
+    const versionLink = event.target.closest("a[data-thread-link]");
+    if (versionLink) {
+      // The document-level link handler navigates; open the thread once that version loads.
+      state.comments.activateAfterLoad = Number(versionLink.dataset.threadLink);
+    } else if (action === "list") {
       state.comments.listMode = !state.comments.listMode;
       updateRailMode();
       renderRail();
@@ -1048,6 +1128,11 @@ function initComments() {
   });
   $("#composer-text").addEventListener("input", (event) => autosize(event.target));
 
+  $("#version").addEventListener("click", toggleVersionsMenu);
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest("#versions-menu, #version")) closeVersionsMenu();
+  });
+
   $("#comments-btn").addEventListener("click", () => {
     if (root.classList.contains("rail-docked")) {
       state.comments.listMode = !state.comments.listMode;
@@ -1095,7 +1180,7 @@ async function init() {
   }
   initComments();
   renderTree();
-  await loadDoc(relFromPathname(location.pathname));
+  await loadDoc(relFromPathname(location.pathname), { version: versionFromSearch(location.search) });
 }
 
 init();

@@ -162,6 +162,27 @@ test("a doc's first comment tracks it, and comments come back rendered and escap
   assert.match(threads[0].messages[0].bodyHtml, /&lt;script&gt;/);
 });
 
+test("stored versions render read-only, and the version list counts their threads", async () => {
+  await fs.writeFile(path.join(dir, "notes", "plan.md"), "# Plan\n\n## Step one\n\nA new paragraph.\n");
+
+  const latest = await docJson("notes/plan.md");
+  const old = JSON.parse((await get("/api/doc?path=notes/plan.md&v=1")).body);
+  const { versions } = JSON.parse((await get("/api/versions?path=notes/plan.md")).body);
+
+  assert.deepEqual(latest.version, { seq: 2 });
+  assert.equal(old.old, true);
+  assert.deepEqual(old.version, { seq: 1, latestSeq: 2 });
+  assert.doesNotMatch(old.html, /A new paragraph/);
+  assert.deepEqual(
+    versions.map((v) => [v.seq, v.threads]),
+    [
+      [2, 0],
+      [1, 1],
+    ],
+  );
+  assert.equal((await get("/api/doc?path=notes/plan.md&v=9")).status, 404);
+});
+
 test("a first comment on content that changed underneath gets 409", async () => {
   const opened = await docJson("notes/draft.md");
   await fs.writeFile(path.join(dir, "notes", "draft.md"), "# Draft\n\nRewritten by an agent.\n");

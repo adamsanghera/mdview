@@ -209,6 +209,65 @@ test("the change token moves on real writes from any process, and not on reads",
   assert.notEqual(store.changeToken(), afterReads);
 });
 
+test("an outdated thread says what its block became, when a new block resembles it", async () => {
+  const v1 = "# Retries\n\n- A 4xx response is never retried.\n- Jitter spreads retries out.\n";
+  const file = await writeDoc("now-reads.md", v1);
+  const id = comment(file, v1, { blockIndex: 1, quote: "never retried" });
+
+  await fs.writeFile(file, "# Retries\n\n- A 4xx response is never retried, except 429, which backs off.\n- Jitter spreads retries out.\n");
+  store.observe(file);
+  assert.deepEqual(store.thread(id).thread.nowReads, {
+    blockIndex: 1,
+    lines: [3, 3],
+    source: "- A 4xx response is never retried, except 429, which backs off.",
+  });
+
+  await fs.writeFile(file, "# Retries\n\n- Jitter spreads retries out.\n\nSomething else entirely.\n");
+  store.observe(file);
+  assert.equal(store.thread(id).thread.nowReads, null);
+});
+
+test("a human reopening without a message leaves one, so the thread waits on the agent", async () => {
+  const file = await writeDoc("reopen.md", "Text.\n");
+  const id = comment(file, "Text.\n");
+  store.setStatus(id, "suggested", AGENT, "done");
+  store.setStatus(id, "open", ADAM);
+
+  const { thread } = store.thread(id);
+
+  assert.equal(thread.messages.at(-1).body, "Reopened.");
+  assert.equal(thread.waitingOn, "agent");
+});
+
+test("a doc's versions list newest first, and any one of them can be read back", async () => {
+  const file = await writeDoc("history.md", "One.\n");
+  comment(file, "One.\n");
+  await fs.writeFile(file, "Two.\n");
+  store.observe(file);
+
+  assert.deepEqual(
+    store.versions(file).map((v) => [v.seq, v.threads]),
+    [
+      [2, 0],
+      [1, 1],
+    ],
+  );
+  assert.deepEqual([store.versionAt(file, 1).content, store.versionAt(file, 1).latestSeq], ["One.\n", 2]);
+  assert.equal(store.versionAt(file, 9), null);
+});
+
+test("lastHumanMessage moves on human messages only", async () => {
+  const file = await writeDoc("last-human.md", "Text.\n");
+  assert.equal(store.lastHumanMessage(file), 0);
+  const id = comment(file, "Text.\n");
+  const afterComment = store.lastHumanMessage(file);
+
+  store.reply(id, "an agent answer", AGENT);
+  assert.equal(store.lastHumanMessage(file), afterComment);
+  store.reply(id, "a human follow-up", ADAM);
+  assert.ok(store.lastHumanMessage(file) > afterComment);
+});
+
 test("messages record the version that was latest when they were written", async () => {
   const file = await writeDoc("stamps.md", "Draft.\n");
   const id = comment(file, "Draft.\n");
