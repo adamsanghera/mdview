@@ -783,6 +783,32 @@ button.crumbs:focus-visible .copy-icon { opacity: 1; }
 .comment-btn:hover { border-color: var(--accent); color: var(--accent); }
 .comment-btn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linejoin: round; }
 
+.comment-ruler {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 25;
+  width: 10px;
+  pointer-events: none;
+}
+.ruler-mark {
+  position: absolute;
+  right: 1px;
+  width: 8px;
+  height: 4px;
+  margin-top: -2px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: var(--quote-bar);
+  pointer-events: auto;
+  cursor: pointer;
+}
+.ruler-mark[data-kind="suggested"] { background: var(--suggested); }
+.ruler-mark[data-kind="active"] { height: 6px; margin-top: -3px; background: var(--accent); }
+.ruler-mark:hover { right: 0; width: 10px; }
+
 .composer {
   position: absolute;
   z-index: 30;
@@ -821,7 +847,7 @@ button.crumbs:focus-visible .copy-icon { opacity: 1; }
 }
 
 @media print {
-  .topbar, .sidebar, .toc-pane, .progress, .toast, .code-copy, .rail, .comment-btn, .composer { display: none !important; }
+  .topbar, .sidebar, .toc-pane, .progress, .toast, .code-copy, .rail, .comment-btn, .composer, .comment-ruler { display: none !important; }
   .doc { max-width: none; padding: 0; }
   .doc a { color: inherit; }
 }

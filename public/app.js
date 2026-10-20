@@ -497,6 +497,7 @@ const HIGHLIGHTS =
     ? { open: new Highlight(), suggested: new Highlight(), active: new Highlight(), pending: new Highlight(), now: new Highlight() }
     : null;
 const NOW_READS_PREVIEW_CHARS = 140;
+const RULER_PREVIEW_CHARS = 80;
 
 // The list view's sections, in order. Each thread goes in the first one that takes it.
 const GROUPS = [
@@ -673,7 +674,7 @@ function resetComments() {
 function forgetRanges() {
   state.comments.ranges = new Map();
   state.comments.nowRanges = new Map();
-  paintHighlights();
+  paintMarks();
 }
 
 function renderComments() {
@@ -691,10 +692,12 @@ function renderComments() {
   updateRailMode();
   renderCommentChrome();
   renderRail();
-  paintHighlights();
+  paintMarks();
 }
 
-function paintHighlights() {
+/** Paints every comment mark: the highlights in the text and the ticks on the scrollbar ruler. */
+function paintMarks() {
+  renderRuler();
   if (!HIGHLIGHTS) return;
   for (const highlight of Object.values(HIGHLIGHTS)) highlight.clear();
   const comments = state.comments;
@@ -705,6 +708,31 @@ function paintHighlights() {
   const now = comments.nowRanges.get(comments.active);
   if (now) HIGHLIGHTS.now.add(now);
   if (comments.pending) HIGHLIGHTS.pending.add(comments.pending.range);
+}
+
+/**
+ * Draws a tick on the strip along the window's right edge for each comment
+ * attached to text. A tick sits at its comment's share of the page height,
+ * the same mapping the scrollbar uses, so the thumb covers a tick exactly
+ * when its comment is on screen. The open thread's tick is drawn last, on top.
+ */
+function renderRuler() {
+  const comments = state.comments;
+  const ruler = $("#comment-ruler");
+  const pageHeight = document.documentElement.scrollHeight;
+  const marks = [...comments.ranges]
+    .map(([id, range]) => ({ id, thread: threadById(id), top: range.getBoundingClientRect().top + scrollY }))
+    .filter((mark) => mark.thread)
+    .sort((a, b) => (a.id === comments.active) - (b.id === comments.active));
+  ruler.innerHTML = marks
+    .map(({ id, thread, top }) => {
+      const kind = id === comments.active ? "active" : thread.status;
+      const preview = truncate(thread.messages[0].body.replace(/\s+/g, " "), RULER_PREVIEW_CHARS);
+      const offset = ((top / pageHeight) * 100).toFixed(3);
+      return `<button class="ruler-mark" type="button" tabindex="-1" data-thread="${id}" data-kind="${kind}" style="top: ${offset}%" title="#${id}: ${escapeHtml(preview)}"></button>`;
+    })
+    .join("");
+  ruler.hidden = !marks.length;
 }
 
 function renderCommentChrome() {
@@ -940,6 +968,7 @@ function scheduleLayout() {
   requestAnimationFrame(() => {
     layoutQueued = false;
     layoutRail();
+    renderRuler();
   });
 }
 
@@ -950,7 +979,7 @@ function activate(id, { scroll = false } = {}) {
   comments.active = id;
   if (!root.classList.contains("rail-docked")) root.classList.add("drawer-open");
   renderRail();
-  paintHighlights();
+  paintMarks();
   const range = comments.ranges.get(id) ?? comments.nowRanges.get(id);
   if (scroll && range) {
     const rect = range.getBoundingClientRect();
@@ -963,7 +992,7 @@ function deactivate() {
   if (state.comments.active === null) return false;
   state.comments.active = null;
   renderRail();
-  paintHighlights();
+  paintMarks();
   return true;
 }
 
@@ -1056,14 +1085,14 @@ function openComposer() {
   input.value = comments.composerDraft;
   autosize(input);
   input.focus({ preventScroll: true });
-  paintHighlights();
+  paintMarks();
 }
 
 function closeComposer() {
   if ($("#composer").hidden) return false;
   $("#composer").hidden = true;
   state.comments.pending = null;
-  paintHighlights();
+  paintMarks();
   return true;
 }
 
@@ -1187,6 +1216,10 @@ function initComments() {
   });
   document.addEventListener("selectionchange", () => {
     if (getSelection().isCollapsed) $("#comment-btn").hidden = true;
+  });
+  $("#comment-ruler").addEventListener("click", (event) => {
+    const mark = event.target.closest(".ruler-mark");
+    if (mark) activate(Number(mark.dataset.thread), { scroll: true });
   });
   new ResizeObserver(scheduleLayout).observe($("#doc"));
 }
