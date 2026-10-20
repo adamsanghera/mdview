@@ -4,9 +4,15 @@ import fs from "node:fs/promises";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
+import { sha256 } from "../lib/blocks.mjs";
 import { startServer } from "../lib/server.mjs";
+import { openStore } from "../lib/store.mjs";
+
+const AGENT = { name: "agent", kind: "agent", session: null };
 
 let dir;
+let home;
+let store;
 let server;
 let port;
 
@@ -21,16 +27,58 @@ function get(pathname, host = `127.0.0.1:${port}`) {
   });
 }
 
+/** POSTs JSON as mdview's own page would. A header set to null is left out. */
+function post(pathname, body, overrides = {}) {
+  const data = JSON.stringify(body);
+  const headers = Object.fromEntries(
+    Object.entries({
+      Host: `127.0.0.1:${port}`,
+      Origin: `http://127.0.0.1:${port}`,
+      "Content-Type": "application/json",
+      "Content-Length": Buffer.byteLength(data),
+      ...overrides,
+    }).filter(([, value]) => value !== null),
+  );
+  return new Promise((resolve, reject) => {
+    const req = http.request({ host: "127.0.0.1", port, path: pathname, method: "POST", headers }, (res) => {
+      let text = "";
+      res.on("data", (chunk) => (text += chunk));
+      res.on("end", () => {
+        let json = null;
+        try {
+          json = JSON.parse(text);
+        } catch {
+          // Not every refusal is JSON.
+        }
+        resolve({ status: res.statusCode, body: json });
+      });
+    });
+    req.on("error", reject);
+    req.end(data);
+  });
+}
+
+async function docJson(rel) {
+  return JSON.parse((await get(`/api/doc?path=${encodeURIComponent(rel)}`)).body);
+}
+
 before(async () => {
   dir = await fs.mkdtemp(path.join(os.tmpdir(), "mdview-server-"));
+  home = await fs.mkdtemp(path.join(os.tmpdir(), "mdview-server-home-"));
+  store = await openStore(home);
   await fs.mkdir(path.join(dir, "notes"));
   await fs.writeFile(path.join(dir, "README.md"), "# Home\n\nSee [notes](notes/plan.md).\n");
   await fs.writeFile(path.join(dir, "notes", "plan.md"), "# Plan\n\n## Step one\n");
+  await fs.writeFile(path.join(dir, "notes", "draft.md"), "# Draft\n\nFirst pass.\n");
   await fs.writeFile(path.join(dir, "notes", "diagram.png"), "png-bytes");
-  ({ server, port } = await startServer({ root: dir, initial: "notes/plan.md", port: 47100 }));
+  ({ server, port } = await startServer({ root: dir, initial: "notes/plan.md", port: 47100, store }));
 });
 
-after(() => server.close());
+after(() => {
+  server.closeAllConnections();
+  server.close();
+  store.close();
+});
 
 test("the root redirects to the initial document", async () => {
   const res = await get("/");
@@ -58,7 +106,7 @@ test("the doc API sends other files to the raw route", async () => {
 test("the tree lists Markdown files under the root", async () => {
   const res = JSON.parse((await get("/api/tree")).body);
 
-  assert.deepEqual([...res.files].sort(), ["README.md", "notes/plan.md"]);
+  assert.deepEqual([...res.files].sort(), ["README.md", "notes/draft.md", "notes/plan.md"]);
 });
 
 test("files outside the root are refused", async () => {
@@ -72,4 +120,96 @@ test("requests that name another host are refused", async () => {
   const res = await get("/api/tree", `evil.example:${port}`);
 
   assert.equal(res.status, 403);
+});
+
+test("writes need mdview's own Origin and a JSON body", async () => {
+  const comment = { path: "notes/plan.md", sha: "x", blockIndex: 0, body: "hi" };
+  for (const tc of [
+    { desc: "no Origin", headers: { Origin: null }, status: 403 },
+    { desc: "another site's Origin", headers: { Origin: "https://evil.example" }, status: 403 },
+    { desc: "an opaque Origin", headers: { Origin: "null" }, status: 403 },
+    { desc: "a form post", headers: { "Content-Type": "application/x-www-form-urlencoded" }, status: 415 },
+  ]) {
+    assert.equal((await post("/api/comments", comment, tc.headers)).status, tc.status, tc.desc);
+  }
+  assert.equal((await post("/api/comments", null)).status, 400, "a body that is not an object");
+});
+
+test("a doc's first comment tracks it, and comments come back rendered and escaped", async () => {
+  const before = await docJson("notes/plan.md");
+  const src = await fs.readFile(path.join(dir, "notes", "plan.md"), "utf8");
+  assert.equal(before.version, null);
+  assert.equal(before.sha, sha256(src));
+
+  const created = await post("/api/comments", {
+    path: "notes/plan.md",
+    sha: before.sha,
+    blockIndex: 1,
+    quote: "Step",
+    start: 0,
+    body: "Is this **right**? <script>alert(1)</script>",
+  });
+  assert.equal(created.status, 201);
+
+  const after = await docJson("notes/plan.md");
+  assert.deepEqual(after.version, { seq: 1 });
+  const { threads } = JSON.parse((await get(`/api/comments?path=notes/plan.md&sha=${after.sha}`)).body);
+  assert.deepEqual(
+    threads.map((t) => [t.id, t.blockIndex, t.state, t.quote]),
+    [[created.body.id, 1, "current", "Step"]],
+  );
+  assert.match(threads[0].messages[0].bodyHtml, /<strong>right<\/strong>/);
+  assert.match(threads[0].messages[0].bodyHtml, /&lt;script&gt;/);
+});
+
+test("a first comment on content that changed underneath gets 409", async () => {
+  const opened = await docJson("notes/draft.md");
+  await fs.writeFile(path.join(dir, "notes", "draft.md"), "# Draft\n\nRewritten by an agent.\n");
+
+  const res = await post("/api/comments", { path: "notes/draft.md", sha: opened.sha, blockIndex: 1, body: "hi" });
+
+  assert.equal(res.status, 409);
+});
+
+test("the browser resolves, reopens and replies, but cannot suggest", async () => {
+  const file = path.join(dir, "README.md");
+  const id = store.createThread({ file, content: await fs.readFile(file, "utf8"), blockIndex: 0, body: "x", author: AGENT });
+  const status = (body) => post(`/api/comments/${id}/status`, body).then((res) => res.status);
+
+  assert.equal(await status({ status: "suggested" }), 400);
+  assert.equal(await status({ status: "resolved" }), 200);
+  assert.equal((await post(`/api/comments/${id}/messages`, { body: "thanks" })).status, 200);
+  assert.equal(store.thread(id).thread.status, "resolved");
+  assert.equal(await status({ status: "open" }), 200);
+  assert.equal((await post("/api/comments/999/status", { status: "open" })).status, 400);
+});
+
+test("a write from another process streams a comments event", async () => {
+  const file = path.join(dir, "README.md");
+  const id = store.createThread({ file, content: await fs.readFile(file, "utf8"), blockIndex: 1, body: "x", author: AGENT });
+
+  const stream = await new Promise((resolve, reject) => {
+    let timer;
+    const req = http.get({ host: "127.0.0.1", port, path: "/api/events?path=README.md", headers: { Host: `127.0.0.1:${port}` } }, async (res) => {
+      let data = "";
+      res.on("data", (chunk) => {
+        data += chunk;
+        if (data.includes("event: comments")) {
+          clearTimeout(timer);
+          req.destroy();
+          resolve(data);
+        }
+      });
+      const cli = await openStore(home);
+      cli.reply(id, "from the CLI", AGENT);
+      cli.close();
+    });
+    req.on("error", () => {});
+    timer = setTimeout(() => {
+      req.destroy();
+      reject(new Error("no comments event within 3s"));
+    }, 3000);
+  });
+
+  assert.match(stream, /event: comments/);
 });

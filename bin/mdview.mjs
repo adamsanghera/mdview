@@ -4,6 +4,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { parseArgs } from "node:util";
 import { startServer } from "../lib/server.mjs";
+import { openStore } from "../lib/store.mjs";
 import { toPosix } from "../lib/files.mjs";
 
 const USAGE = `Usage: mdview [file-or-folder] [options]
@@ -62,7 +63,11 @@ async function view(argv) {
   const port = values.port ? Number(values.port) : 4545;
   if (!Number.isInteger(port) || port < 1 || port > 65535) fail(`invalid port: ${values.port}`);
 
-  const { url } = await startServer({ root, initial, port });
+  const store = await openStore().catch((err) => {
+    console.error(`mdview: comments are off because the comment store did not open: ${err.message}`);
+    return null;
+  });
+  const { url } = await startServer({ root, initial, port, store });
   console.log(`mdview serving ${root}`);
   console.log(`  ${url}`);
 
