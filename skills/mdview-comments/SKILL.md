@@ -13,16 +13,21 @@ usual file tools. If `mdview` is not on PATH, run
 
 ## The loop
 
-1. `mdview comments list <doc>` prints every unresolved thread: its status,
-   whose turn it is, where it sits, the quoted text, and the messages.
-2. For each thread waiting on the agent, `mdview comments show <id>` prints
-   the whole thread and the source of the block it is on.
-3. Edit the doc to address it, or decide not to and say why.
-4. Answer the thread:
+1. `mdview comments list <doc-or-folder> --waiting-on agent --full` prints
+   every thread waiting on you, in full: where it sits, the source of its
+   block, and every message. A folder covers every doc with comments under
+   it, so one call covers a whole spec folder. Pass several docs or folders
+   at once rather than looping.
+2. Edit the doc to address each thread, or decide not to and say why.
+3. Answer each thread:
    - `mdview comments reply <id> -m "..."` to explain or to ask a question.
    - `mdview comments suggest-resolve <id> -m "<what changed>"` when it is
      done. The human confirms by resolving it.
-5. Run `list` again and check each thread's state.
+4. Run `mdview comments list <doc-or-folder>` again and check each
+   thread's state.
+
+Without flags, `list` prints a summary of every unresolved thread.
+`mdview comments show <id>...` prints chosen threads in full.
 
 Never resolve or reopen a thread. Both belong to the human, and the CLI
 refuses them without `--human`, a flag that is not for you.

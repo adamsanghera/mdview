@@ -304,6 +304,22 @@ test("a human deletes a reply, but the first message goes only with its thread",
   assert.equal(thread.waitingOn, "agent");
 });
 
+test("docsUnder finds tracked docs at any depth inside a folder, and nothing beside it", async () => {
+  await fs.mkdir(path.join(dir, "tree", "sub"), { recursive: true });
+  const top = await writeDoc("tree/top.md", "Top.\n");
+  const nested = await writeDoc("tree/sub/nested.md", "Nested.\n");
+  const sibling = await writeDoc("tree-sibling.md", "Shares the folder's name as a prefix.\n");
+  await writeDoc("tree/untracked.md", "No comments.\n");
+  for (const file of [top, nested, sibling]) comment(file, await fs.readFile(file, "utf8"));
+
+  const real = await fs.realpath(dir);
+
+  assert.deepEqual(
+    store.docsUnder(path.join(dir, "tree")).map((file) => path.relative(real, file)),
+    ["tree/sub/nested.md", "tree/top.md"],
+  );
+});
+
 test("messages record the version that was latest when they were written", async () => {
   const file = await writeDoc("stamps.md", "Draft.\n");
   const id = comment(file, "Draft.\n");

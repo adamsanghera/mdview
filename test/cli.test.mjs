@@ -120,11 +120,54 @@ test("wait returns when the human writes, and exits 3 at its timeout", async () 
   assert.match(timedOut.out, /No new comments on wait\.md after 1s\./);
 });
 
+test("one list call covers a folder, keeps what waits on the agent, and prints it in full", async () => {
+  await fs.mkdir(path.join(dir, "batch", "deep"), { recursive: true });
+  const a = await writeDoc("batch/a.md", "Alpha paragraph.\n\nBeta paragraph.\n");
+  const b = await writeDoc("batch/deep/b.md", "Gamma paragraph.\n");
+  await writeDoc("batch/untouched.md", "No comments here.\n");
+  const waiting = startedId(mdview("add", a, "--human", "--line", "1", "-m", "Tighten this."));
+  const answered = startedId(mdview("add", a, "--human", "--line", "3", "-m", "Why beta?"));
+  mdview("reply", String(answered), "-m", "Because of X.");
+  const deep = startedId(mdview("add", b, "--human", "--line", "1", "-m", "Gamma needs a source."));
+
+  const { status, out } = mdview("list", "batch", "--waiting-on", "agent", "--full");
+  const json = JSON.parse(mdview("list", "batch", "--waiting-on", "agent", "--json").out);
+
+  assert.equal(status, 0);
+  assert.match(out, new RegExp(`#${waiting} open · waiting on agent`));
+  assert.match(out, new RegExp(`#${deep} open · waiting on agent`));
+  assert.match(out, /Block in v1, line 1:\n {4}Gamma paragraph\./);
+  assert.doesNotMatch(out, new RegExp(`#${answered} `));
+  assert.doesNotMatch(out, /untouched/);
+  assert.deepEqual(
+    json.map((d) => [path.basename(d.doc), d.threads.map((t) => t.id)]),
+    [
+      ["a.md", [waiting]],
+      ["b.md", [deep]],
+    ],
+  );
+});
+
+test("show prints several threads in one call", async () => {
+  const doc = await writeDoc("several.md", "One.\n\nTwo.\n");
+  const first = startedId(mdview("add", doc, "--human", "--line", "1", "-m", "first"));
+  const second = startedId(mdview("add", doc, "--human", "--line", "3", "-m", "second"));
+
+  const { out } = mdview("show", String(first), String(second));
+  const json = JSON.parse(mdview("show", String(first), String(second), "--json").out);
+
+  assert.match(out, new RegExp(`^#${first} open[\\s\\S]*\\n---\\n\\n#${second} open`));
+  assert.deepEqual(
+    json.map((r) => r.thread.id),
+    [first, second],
+  );
+});
+
 test("--json prints the thread views", async () => {
   const doc = await writeDoc("json.md", "One paragraph.\n");
   const id = startedId(mdview("add", doc, "--human", "--quote", "paragraph", "-m", "hi"));
 
-  const listed = JSON.parse(mdview("list", doc, "--json").out);
+  const [listed] = JSON.parse(mdview("list", doc, "--json").out);
   const replied = JSON.parse(mdview("reply", String(id), "-m", "hello", "--json").out);
 
   assert.equal(listed.version.seq, 1);
@@ -167,10 +210,12 @@ test("malformed commands exit 2 and refused ones exit 1", async () => {
   [
     { desc: "unknown verb", args: ["bogus", "x"], status: 2, err: /unknown verb "bogus"/ },
     { desc: "deleting is for the human, in the viewer", args: ["delete", "1"], status: 2, err: /unknown verb "delete"/ },
+    { desc: "single-thread verbs take one id", args: ["reply", "1", "2", "-m", "x"], status: 2, err: /takes one <id>, not 2/ },
+    { desc: "bad --waiting-on", args: ["list", doc, "--waiting-on", "bob"], status: 2, err: /--waiting-on must be agent or human/ },
     { desc: "missing target", args: ["show"], status: 2, err: /missing <id>/ },
     { desc: "missing message", args: ["add", doc, "--line", "1"], status: 2, err: /needs a message/ },
     { desc: "bad line", args: ["add", doc, "--line", "zero", "-m", "x"], status: 2, err: /--line must be a line number/ },
-    { desc: "missing file", args: ["list", "nope.md"], status: 2, err: /No such file: nope\.md/ },
+    { desc: "missing file", args: ["list", "nope.md"], status: 2, err: /No such file or folder: nope\.md/ },
     { desc: "ambiguous quote", args: ["add", doc, "--quote", "Same", "-m", "x"], status: 1, err: /appears in 2 blocks/ },
     { desc: "unknown thread", args: ["show", "999"], status: 1, err: /No thread #999/ },
   ].forEach((tc) => {

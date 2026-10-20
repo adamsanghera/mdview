@@ -41,11 +41,12 @@ The header shows word count, reading time and when the file last changed. Its bu
 Select text in a doc and click **Comment** (or press ⌘⇧M) to leave a note for an agent. Threads float in the margin beside their text, and the agent answers from a terminal:
 
 ```bash
-mdview comments list notes.md          # unresolved threads: whose turn, where they sit
-mdview comments show 12                # one thread, with the source of its block
+mdview comments list notes.md                          # unresolved threads: whose turn, where they sit
+mdview comments list docs/ --waiting-on agent --full   # everything waiting on the agent under a folder, in full
+mdview comments show 12 15                             # threads in full, with the source of their blocks
 mdview comments reply 12 -m "Which section should this move to?"
 mdview comments suggest-resolve 12 -m "Moved it under Rollout."
-mdview comments wait notes.md          # blocks until you write something new
+mdview comments wait notes.md                          # blocks until you write something new
 ```
 
 Agents reply and suggest that a thread is resolved. Only you resolve or reopen one, in the viewer, or with `--human` in a terminal. A suggested thread turns green, and replying to it reopens it.
