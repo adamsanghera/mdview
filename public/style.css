@@ -102,6 +102,30 @@ body {
 .crumbs span { overflow: hidden; text-overflow: ellipsis; }
 .crumbs .sep { opacity: 0.6; }
 .crumbs .here { color: var(--text); font-weight: 600; }
+button.crumbs {
+  margin-left: -6px;
+  padding: 5px 6px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+button.crumbs:hover { background: var(--hover); }
+.crumbs .copy-icon {
+  flex: none;
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+  opacity: 0;
+  transition: opacity 120ms;
+}
+button.crumbs:hover .copy-icon,
+button.crumbs:focus-visible .copy-icon { opacity: 1; }
 
 .meta {
   margin-left: auto;

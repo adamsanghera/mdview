@@ -5,6 +5,8 @@ const PREFERS_DARK = matchMedia("(prefers-color-scheme: dark)");
 const THEMES = ["auto", "light", "dark"];
 const SPY_OFFSET_PX = 80;
 const CHEVRON = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4l4 4-4 4"/></svg>';
+const COPY_ICON =
+  '<svg class="copy-icon" viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5"/></svg>';
 
 const state = {
   info: null,
@@ -267,8 +269,10 @@ function renderCrumbs(rel) {
   const crumbs = $("#crumbs");
   crumbs.innerHTML =
     folders.map((p) => `<span>${escapeHtml(p)}</span><span class="sep">/</span>`).join("") +
-    `<span class="here">${escapeHtml(parts.at(-1))}</span>`;
-  crumbs.title = state.doc?.abs ?? "";
+    `<span class="here">${escapeHtml(parts.at(-1))}</span>` +
+    COPY_ICON;
+  crumbs.title = state.doc ? `Copy ${state.doc.abs}` : "";
+  crumbs.setAttribute("aria-label", state.doc ? `Copy the file's absolute path, ${state.doc.abs}` : "");
 }
 
 function renderMeta() {
@@ -1195,6 +1199,9 @@ async function init() {
   $("#theme").addEventListener("click", cycleTheme);
   $("#toggle-sidebar").addEventListener("click", toggleSidebar);
   $("#filter").addEventListener("input", renderTree);
+  $("#crumbs").addEventListener("click", async () => {
+    if (state.doc && (await copyText(state.doc.abs))) toast(`Copied ${state.doc.abs}`);
+  });
   $("#copy-md").addEventListener("click", async () => {
     if (!state.doc) return;
     const res = await fetch(`/raw/${encodePath(state.doc.path)}`, { cache: "no-store" });
