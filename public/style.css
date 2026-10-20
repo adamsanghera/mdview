@@ -13,6 +13,9 @@
   --accent-soft: rgba(47, 111, 235, 0.1);
   --code-bg: #f6f8fa;
   --live: #2da44e;
+  --suggested: #1a7f37;
+  --outdated: #9a6700;
+  --quote-bar: #d4a72c;
   --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
   --topbar: 48px;
@@ -34,10 +37,15 @@
   --accent-soft: rgba(106, 167, 255, 0.13);
   --code-bg: #161b22;
   --live: #3fb950;
+  --suggested: #3fb950;
+  --outdated: #d29922;
+  --quote-bar: #bb8009;
   color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
+
+[hidden] { display: none !important; }
 
 html { scroll-padding-top: calc(var(--topbar) + 16px); }
 
@@ -452,6 +460,250 @@ body {
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
+/* Comments */
+
+/* Highlight pseudo-elements do not reliably read custom properties, so the colors are spelled out per theme. */
+::highlight(mdview-comment-open) { background-color: rgba(250, 204, 21, 0.3); }
+::highlight(mdview-comment-suggested) { background-color: rgba(45, 164, 78, 0.2); }
+::highlight(mdview-comment-active),
+::highlight(mdview-comment-pending) { background-color: rgba(250, 204, 21, 0.6); }
+[data-theme="dark"] ::highlight(mdview-comment-open) { background-color: rgba(250, 204, 21, 0.2); }
+[data-theme="dark"] ::highlight(mdview-comment-suggested) { background-color: rgba(63, 185, 80, 0.22); }
+[data-theme="dark"] ::highlight(mdview-comment-active),
+[data-theme="dark"] ::highlight(mdview-comment-pending) { background-color: rgba(250, 204, 21, 0.42); }
+
+.version-chip {
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 11.5px;
+  color: var(--text-soft);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.comments-btn { position: relative; width: auto; min-width: 32px; padding: 0 7px; grid-auto-flow: column; gap: 5px; }
+.comments-btn .count { font-size: 12px; font-variant-numeric: tabular-nums; }
+.comments-btn .count:empty { display: none; }
+.comments-btn.attention::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  right: 3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--suggested);
+}
+
+.rail { display: none; }
+
+/* RAIL_WIDTH_PX and RAIL_GAP_PX in app.js must match the rail's width and gap here. */
+.rail-docked .content { display: flex; justify-content: center; align-items: flex-start; gap: 24px; }
+.rail-docked .doc { flex: 0 1 47rem; min-width: 0; margin: 0; }
+.rail-docked .rail { display: block; position: relative; flex: 0 0 300px; padding-top: 18px; }
+.rail-docked .rail.listing {
+  position: sticky;
+  top: var(--topbar);
+  max-height: calc(100vh - var(--topbar));
+  overflow-y: auto;
+  padding-bottom: 40px;
+  scrollbar-width: thin;
+}
+.rail:not(.listing) .thread { position: absolute; left: 0; right: 0; }
+
+.drawer-open .rail {
+  display: block;
+  position: fixed;
+  top: var(--topbar);
+  right: 0;
+  bottom: 0;
+  z-index: 26;
+  width: min(360px, 100vw);
+  padding: 14px 14px 40px;
+  overflow-y: auto;
+  background: var(--bg);
+  border-left: 1px solid var(--border);
+  box-shadow: -8px 0 30px rgba(0, 0, 0, 0.12);
+}
+
+@media (max-width: 1639px) {
+  .has-comments .toc-pane { display: none; }
+}
+
+.rail-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 12.5px;
+  color: var(--text-faint);
+}
+.rail-group {
+  margin: 18px 0 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.rail-group span { font-weight: 400; }
+.rail-empty { font-size: 13px; color: var(--text-faint); }
+.listing .thread + .thread { margin-top: 10px; }
+
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--accent);
+  cursor: pointer;
+}
+.link:hover { text-decoration: underline; }
+
+.thread {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  font-size: 13.5px;
+  line-height: 1.5;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  cursor: pointer;
+  transition: box-shadow 120ms, border-color 120ms;
+}
+.thread:hover { border-color: var(--border-strong); }
+.thread.expanded {
+  z-index: 2;
+  border-color: var(--border-strong);
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.14);
+  cursor: default;
+}
+.thread[data-status="suggested"] { border-left: 3px solid var(--suggested); }
+.thread[data-status="resolved"] { opacity: 0.75; }
+
+.thread-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 6px; font-size: 12px; color: var(--text-faint); }
+.thread-id { font-variant-numeric: tabular-nums; }
+
+.chip {
+  padding: 0 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-soft);
+  font-size: 11px;
+  line-height: 18px;
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+.chip-suggested { color: var(--suggested); border-color: color-mix(in srgb, var(--suggested) 45%, transparent); }
+.chip-outdated { color: var(--outdated); border-color: color-mix(in srgb, var(--outdated) 45%, transparent); }
+
+.thread-quote {
+  margin: 0 0 8px;
+  padding-left: 8px;
+  border-left: 2px solid var(--quote-bar);
+  font-size: 12.5px;
+  color: var(--text-soft);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.messages { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.message-meta { display: flex; align-items: baseline; gap: 6px; font-size: 12px; color: var(--text-faint); }
+.message-meta .author { font-weight: 600; color: var(--text); }
+.message-meta .when { margin-left: auto; white-space: nowrap; }
+.badge {
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.message-body { overflow-wrap: anywhere; }
+.message-body > :first-child { margin-top: 0; }
+.message-body > :last-child { margin-bottom: 0; }
+.message-body p, .message-body ul, .message-body ol { margin: 4px 0; }
+.message-body ul, .message-body ol { padding-left: 1.3em; }
+.message-body code { font-family: var(--mono); font-size: 0.9em; padding: 0.1em 0.3em; border-radius: 4px; background: var(--code-bg); }
+.message-body pre { overflow-x: auto; padding: 6px 8px; border-radius: 6px; background: var(--code-bg); font-size: 12px; }
+.message-body pre code { padding: 0; background: none; }
+.thread:not(.expanded) .message-body {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.message.more { font-size: 12px; color: var(--text-faint); }
+
+.thread textarea,
+.composer textarea {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--bg);
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--text);
+  resize: none;
+}
+.thread textarea:focus,
+.composer textarea:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+
+.thread-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px; }
+.btn {
+  padding: 4px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  background: var(--bg);
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--text);
+  cursor: pointer;
+}
+.btn:hover { background: var(--hover); }
+.btn-primary { border-color: var(--accent); background: var(--accent); color: #fff; }
+.btn-primary:hover { background: color-mix(in srgb, var(--accent) 88%, black); }
+
+.comment-btn {
+  position: absolute;
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--bg);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.14);
+  font: 600 12.5px var(--font);
+  color: var(--text);
+  cursor: pointer;
+}
+.comment-btn:hover { border-color: var(--accent); color: var(--accent); }
+.comment-btn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linejoin: round; }
+
+.composer {
+  position: absolute;
+  z-index: 30;
+  width: 340px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--bg);
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.2);
+}
+.composer .thread-quote { margin-bottom: 0; }
+
 /* Narrow screens: the TOC goes first, then the file list becomes an overlay. */
 
 @media (max-width: 1180px) {
@@ -478,7 +730,7 @@ body {
 }
 
 @media print {
-  .topbar, .sidebar, .toc-pane, .progress, .toast, .code-copy { display: none !important; }
+  .topbar, .sidebar, .toc-pane, .progress, .toast, .code-copy, .rail, .comment-btn, .composer { display: none !important; }
   .doc { max-width: none; padding: 0; }
   .doc a { color: inherit; }
 }

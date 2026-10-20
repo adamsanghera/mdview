@@ -27,7 +27,12 @@
     </button>
     <nav class="crumbs" id="crumbs" aria-label="Path"></nav>
     <div class="meta" id="meta"></div>
+    <span class="version-chip" id="version" hidden></span>
     <div class="actions">
+      <button class="icon-btn comments-btn" id="comments-btn" title="Comments" aria-label="Comments" hidden>
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 2.5h9A1.5 1.5 0 0 1 14 4v5.5a1.5 1.5 0 0 1-1.5 1.5H8.5l-3 2.5V11h-2A1.5 1.5 0 0 1 2 9.5V4a1.5 1.5 0 0 1 1.5-1.5z"/></svg>
+        <span class="count" id="comments-count"></span>
+      </button>
       <span class="live" id="live" title="Live reload: waiting"></span>
       <button class="icon-btn" id="copy-md" title="Copy this file's Markdown" aria-label="Copy Markdown">
         <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5"/></svg>
@@ -52,11 +57,24 @@
     </aside>
     <main class="content">
       <article class="doc" id="doc"></article>
+      <aside class="rail" id="rail" aria-label="Comments"></aside>
     </main>
     <aside class="toc-pane" id="toc-pane">
       <div class="toc-title">On this page</div>
       <nav id="toc" aria-label="On this page"></nav>
     </aside>
+  </div>
+  <button class="comment-btn" id="comment-btn" type="button" title="Comment on the selection (⌘⇧M)" hidden>
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 2.5h9A1.5 1.5 0 0 1 14 4v5.5a1.5 1.5 0 0 1-1.5 1.5H8.5l-3 2.5V11h-2A1.5 1.5 0 0 1 2 9.5V4a1.5 1.5 0 0 1 1.5-1.5z"/></svg>
+    Comment
+  </button>
+  <div class="composer" id="composer" role="dialog" aria-label="New comment" hidden>
+    <blockquote class="thread-quote" id="composer-quote"></blockquote>
+    <textarea id="composer-text" rows="2" placeholder="Comment for the agent… Enter sends, Shift+Enter adds a line"></textarea>
+    <div class="thread-actions">
+      <button class="btn" type="button" id="composer-cancel">Cancel</button>
+      <button class="btn btn-primary" type="button" id="composer-submit">Comment</button>
+    </div>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script type="module" src="/static/app.js"></script>
