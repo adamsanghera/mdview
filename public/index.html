@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>mdview</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/hljs/github.css" id="hljs-light">
+  <link rel="stylesheet" href="/static/hljs/github-dark.css" id="hljs-dark">
+  <script>
+    (function () {
+      var pref = localStorage.getItem("mdview.theme") || "auto";
+      var dark = pref === "dark" || (pref === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
+      document.documentElement.dataset.theme = dark ? "dark" : "light";
+      document.getElementById("hljs-light").disabled = dark;
+      document.getElementById("hljs-dark").disabled = !dark;
+      if (localStorage.getItem("mdview.sidebar") === "hidden") document.documentElement.classList.add("no-sidebar");
+    })();
+  </script>
+</head>
+<body>
+  <div class="progress" id="progress"></div>
+  <header class="topbar">
+    <button class="icon-btn" id="toggle-sidebar" title="Toggle the file list (\)" aria-label="Toggle the file list">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M6 2.5v11"/></svg>
+    </button>
+    <nav class="crumbs" id="crumbs" aria-label="Path"></nav>
+    <div class="meta" id="meta"></div>
+    <div class="actions">
+      <span class="live" id="live" title="Live reload: waiting"></span>
+      <button class="icon-btn" id="copy-md" title="Copy this file's Markdown" aria-label="Copy Markdown">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5"/></svg>
+      </button>
+      <a class="icon-btn" id="open-editor" title="Open in Cursor" aria-label="Open in Cursor">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9 2.5h4.5V7"/><path d="M13.5 2.5 7.5 8.5"/><path d="M12 9.5v3a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 2 12.5v-7A1.5 1.5 0 0 1 3.5 4h3"/></svg>
+      </a>
+      <button class="icon-btn" id="theme" title="Theme" aria-label="Change theme">
+        <svg class="i-auto" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5v11a5.5 5.5 0 0 0 0-11z" class="fill"/></svg>
+        <svg class="i-light" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3 3l1 1M12 12l1 1M3 13l1-1M12 4l1-1"/></svg>
+        <svg class="i-dark" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.5A5.5 5.5 0 0 1 6.5 2.5a5.5 5.5 0 1 0 7 7z"/></svg>
+      </button>
+    </div>
+  </header>
+  <div class="layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="filter-wrap">
+        <input id="filter" type="search" placeholder="Filter files" autocomplete="off" spellcheck="false" aria-label="Filter files">
+        <kbd>/</kbd>
+      </div>
+      <nav id="tree" aria-label="Files"></nav>
+    </aside>
+    <main class="content">
+      <article class="doc" id="doc"></article>
+    </main>
+    <aside class="toc-pane" id="toc-pane">
+      <div class="toc-title">On this page</div>
+      <nav id="toc" aria-label="On this page"></nav>
+    </aside>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="/static/app.js"></script>
+</body>
+</html>
