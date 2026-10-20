@@ -9,11 +9,11 @@
     "mdview": "bin/mdview.mjs"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.13"
   },
   "scripts": {
-    "start": "node bin/mdview.mjs",
-    "test": "node --test"
+    "start": "node --disable-warning=ExperimentalWarning bin/mdview.mjs",
+    "test": "node --disable-warning=ExperimentalWarning --test"
   },
   "dependencies": {
     "github-slugger": "^2.0.0",
