@@ -710,7 +710,8 @@ button.crumbs:focus-visible .copy-icon { opacity: 1; }
   overflow: hidden;
 }
 
-.messages { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+/* minmax(0, 1fr) lets the column shrink below a code block's longest line, which then scrolls inside the card. */
+.messages { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin: 0; padding: 0; list-style: none; }
 .message-meta { display: flex; align-items: baseline; gap: 6px; font-size: 12px; color: var(--text-faint); }
 .message-meta .author { font-weight: 600; color: var(--text); }
 .message-meta .when { margin-left: auto; white-space: nowrap; }
