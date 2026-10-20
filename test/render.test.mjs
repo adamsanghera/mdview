@@ -29,7 +29,7 @@ test("renderMarkdown builds GitHub-style anchors and a table of contents", () =>
     { level: 3, id: "why", text: "Why" },
     { level: 2, id: "why-1", text: "Why" },
   ]);
-  assert.match(doc.html, /<h2 id="1-the-engine-is-mysql-vitess">/);
+  assert.match(doc.html, /<h2 id="1-the-engine-is-mysql-vitess"[ >]/);
 });
 
 test("renderMarkdown resets anchors between documents", () => {
@@ -57,7 +57,7 @@ test("renderMarkdown wraps tables, highlights code and counts words", () => {
   const doc = renderMarkdown(src, "doc.md");
 
   assert.match(doc.html, /<div class="table-wrap"><table>/);
-  assert.match(doc.html, /<pre class="code" data-lang="js"><code class="hljs">.*hljs-keyword/s);
+  assert.match(doc.html, /<pre data-block="\d+" class="code" data-lang="js"><code class="hljs">.*hljs-keyword/s);
   assert.equal(doc.words, 8);
   assert.equal(doc.minutes, 1);
 });
