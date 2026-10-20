@@ -47,6 +47,8 @@ refuses them without `--human`, a flag that is not for you.
 - Every verb takes `--json` for structured output.
 - `mdview comments add <doc> --line <n> -m "..."` asks the human about a
   block. `--quote <text>` picks the one block containing that text.
-- `mdview comments wait <doc>` blocks until the human writes on the doc and
-  prints one line per check. It exits 0 with the new comments, or 3 when it
-  times out (`--timeout 30m` by default).
+- `mdview comments wait <doc-or-folder>...` returns the moment anything
+  there waits on you, printing those threads in full (exit 0), or exits 3 at
+  its timeout (`--timeout 30m` by default). It has no cursor: answer every
+  thread waiting on you before you wait again, or the same threads return at
+  once. The human may batch comments, so one wake can bring several.

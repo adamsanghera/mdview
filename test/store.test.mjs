@@ -257,16 +257,21 @@ test("a doc's versions list newest first, and any one of them can be read back",
   assert.equal(store.versionAt(file, 9), null);
 });
 
-test("lastHumanMessage moves on human messages only", async () => {
-  const file = await writeDoc("last-human.md", "Text.\n");
-  assert.equal(store.lastHumanMessage(file), 0);
-  const id = comment(file, "Text.\n");
-  const afterComment = store.lastHumanMessage(file);
+test("waitingOnAgent finds sent threads where a human spoke last, inside the scope", async () => {
+  await fs.mkdir(path.join(dir, "scope", "deep"), { recursive: true });
+  const inside = await writeDoc("scope/deep/a.md", "A.\n");
+  const sibling = await writeDoc("scope-sibling.md", "S.\n");
+  const asked = comment(inside, "A.\n");
+  const answered = comment(inside, "A.\n");
+  store.reply(answered, "an answer", AGENT);
+  const resolved = comment(inside, "A.\n");
+  store.setStatus(resolved, "resolved", ADAM);
+  comment(inside, "A.\n", { pending: true });
+  const outside = comment(sibling, "S.\n");
 
-  store.reply(id, "an agent answer", AGENT);
-  assert.equal(store.lastHumanMessage(file), afterComment);
-  store.reply(id, "a human follow-up", ADAM);
-  assert.ok(store.lastHumanMessage(file) > afterComment);
+  assert.deepEqual(store.waitingOnAgent({ folders: [path.join(dir, "scope")] }), [asked]);
+  assert.deepEqual(store.waitingOnAgent({ files: [sibling] }), [outside]);
+  store.discardPending(ADAM);
 });
 
 test("only a human deletes threads, and a doc's last thread takes its stored versions along", async () => {

@@ -5,7 +5,11 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { register } from "../lib/registry.mjs";
+import { startServer } from "../lib/server.mjs";
 import { openStore } from "../lib/store.mjs";
+
+const HUMAN = { name: "adam", kind: "human" };
 
 const BIN = fileURLToPath(new URL("../bin/mdview.mjs", import.meta.url));
 
@@ -27,18 +31,34 @@ function mdview(...args) {
   return { status: res.status, out: res.stdout, err: res.stderr };
 }
 
-/** Starts a CLI process without waiting for it. `done` resolves with its status and output. */
+/** Starts a CLI process without waiting for it. `done` resolves with its status, output, and exit time. */
 function mdviewInBackground(...args) {
   const child = spawn(process.execPath, ["--disable-warning=ExperimentalWarning", BIN, "comments", ...args], { cwd: dir, env });
   let out = "";
   let err = "";
+  let exited = false;
   child.stdout.on("data", (chunk) => (out += chunk));
   child.stderr.on("data", (chunk) => (err += chunk));
   return {
     output: () => out,
-    done: new Promise((resolve) => child.on("close", (status) => resolve({ status, out, err }))),
+    exited: () => exited,
+    done: new Promise((resolve) =>
+      child.on("close", (status) => {
+        exited = true;
+        resolve({ status, out, err, exitedAt: Date.now() });
+      }),
+    ),
   };
 }
+
+/** Starts `mdview comments wait` and returns once it says it is waiting. */
+async function startWaiting(...args) {
+  const waiting = mdviewInBackground("wait", ...args);
+  await until(() => waiting.output().includes("waiting for comments"));
+  return waiting;
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function until(check, timeoutMs = 5000) {
   const deadline = Date.now() + timeoutMs;
@@ -105,20 +125,114 @@ test("show says what an outdated block now reads", async () => {
   assert.match(out, /Now reads, in v2, line 1:\n {4}Retries never happen on a 4xx, except a 429\./);
 });
 
-test("wait returns when the human writes, and exits 3 at its timeout", async () => {
-  const doc = await writeDoc("wait.md", "Waiting text.\n");
-  const waiting = mdviewInBackground("wait", doc, "--interval", "1s", "--timeout", "20s");
-  await until(() => waiting.output().includes("{next:1s}"));
+test("wait returns at once when something already waits on the agent", async () => {
+  const doc = await writeDoc("wait-now.md", "Already asked.\n");
+  const id = startedId(mdview("add", doc, "--human", "--line", "1", "-m", "Still waiting on you."));
 
-  startedId(mdview("add", doc, "--human", "--line", "1", "-m", "Are you there?"));
-  const woke = await waiting.done;
-  const timedOut = mdview("wait", doc, "--interval", "1s", "--timeout", "1s");
+  const res = mdview("wait", doc, "--timeout", "5s");
 
-  assert.equal(woke.status, 0, woke.err);
-  assert.match(woke.out, /^no new comments on wait\.md \{next:1s\}$/m);
-  assert.match(woke.out, /New comments on wait\.md:[\s\S]*adam \(.*\): Are you there\?/);
-  assert.equal(timedOut.status, 3);
-  assert.match(timedOut.out, /No new comments on wait\.md after 1s\./);
+  assert.equal(res.status, 0, res.err);
+  assert.match(res.out, new RegExp(`#${id} open · waiting on agent[\\s\\S]*Block in v1, line 1`));
+  assert.doesNotMatch(res.out, /waiting for comments/);
+});
+
+test("wait wakes within milliseconds of a comment, through a running viewer's doorbell", async () => {
+  const doc = await writeDoc("wait-doorbell.md", "Watched text.\n");
+  const file = path.join(dir, doc);
+  const viewerStore = await openStore(env.MDVIEW_HOME);
+  const { server, port } = await startServer({ root: dir, port: 48100, store: viewerStore });
+  let streamOpened = false;
+  server.on("request", (req) => {
+    if (req.url === "/api/store-events") streamOpened = true;
+  });
+  const unregister = register(env.MDVIEW_HOME, { port, root: dir });
+  try {
+    const waiting = await startWaiting(doc, "--timeout", "20s");
+    await until(() => streamOpened);
+    await sleep(200);
+    const wrote = Date.now();
+    viewerStore.createThread({ file, content: await fs.readFile(file, "utf8"), line: 1, body: "Rang the doorbell.", author: HUMAN });
+    const res = await waiting.done;
+
+    assert.equal(res.status, 0, res.err);
+    assert.ok(res.exitedAt - wrote < 500, `woke ${res.exitedAt - wrote} ms after the comment`);
+    assert.match(res.out, /Rang the doorbell\./);
+  } finally {
+    unregister();
+    server.closeAllConnections();
+    server.close();
+    viewerStore.close();
+  }
+});
+
+test("wait wakes by watching the store itself when no viewer runs", async () => {
+  const doc = await writeDoc("wait-poll.md", "Unwatched text.\n");
+  const file = path.join(dir, doc);
+  const waiting = await startWaiting(doc, "--timeout", "20s");
+  const writer = await openStore(env.MDVIEW_HOME);
+  const wrote = Date.now();
+  writer.createThread({ file, content: await fs.readFile(file, "utf8"), line: 1, body: "No viewer here.", author: HUMAN });
+  writer.close();
+  const res = await waiting.done;
+
+  assert.equal(res.status, 0, res.err);
+  assert.ok(res.exitedAt - wrote < 800, `woke ${res.exitedAt - wrote} ms after the comment`);
+  assert.match(res.out, /No viewer here\./);
+});
+
+test("a sent batch wakes wait once with every thread, and drafts never wake it", async () => {
+  const doc = await writeDoc("wait-batch.md", "First.\n\nSecond.\n");
+  const file = path.join(dir, doc);
+  const content = await fs.readFile(file, "utf8");
+  const waiting = await startWaiting(doc, "--timeout", "20s");
+  const store = await openStore(env.MDVIEW_HOME);
+  store.createThread({ file, content, line: 1, body: "Draft one.", author: HUMAN, pending: true });
+  store.createThread({ file, content, line: 3, body: "Draft two.", author: HUMAN, pending: true });
+  await sleep(400);
+  const stillWaitingOnDrafts = !waiting.exited();
+  store.sendPending(HUMAN);
+  store.close();
+  const res = await waiting.done;
+
+  assert.equal(stillWaitingOnDrafts, true);
+  assert.equal(res.status, 0, res.err);
+  assert.match(res.out, /Draft one\.[\s\S]*Draft two\./);
+});
+
+test("the agent's own reply never wakes wait, and the human's next word does", async () => {
+  const doc = await writeDoc("wait-turns.md", "Text.\n");
+  const id = String(startedId(mdview("add", doc, "--human", "--line", "1", "-m", "A question?")));
+  mdview("reply", id, "-m", "An answer.");
+  const waiting = await startWaiting(doc, "--timeout", "20s");
+  mdview("reply", id, "-m", "One more thought.");
+  await sleep(400);
+  const stillWaitingAfterAgent = !waiting.exited();
+  mdview("reply", id, "--human", "-m", "Thanks, one follow-up.");
+  const res = await waiting.done;
+
+  assert.equal(stillWaitingAfterAgent, true);
+  assert.equal(res.status, 0, res.err);
+  assert.match(res.out, /Thanks, one follow-up\./);
+});
+
+test("wait on a folder wakes for a doc created after it started", async () => {
+  await fs.mkdir(path.join(dir, "live"), { recursive: true });
+  const waiting = await startWaiting("live", "--timeout", "20s");
+  const doc = await writeDoc("live/new.md", "A brand new doc.\n");
+  startedId(mdview("add", doc, "--human", "--line", "1", "-m", "On a doc that did not exist."));
+  const res = await waiting.done;
+
+  assert.equal(res.status, 0, res.err);
+  assert.match(res.out, /live\/new\.md[\s\S]*On a doc that did not exist\./);
+});
+
+test("wait exits 3 at its timeout", async () => {
+  const doc = await writeDoc("wait-quiet.md", "Quiet.\n");
+
+  const res = mdview("wait", doc, "--timeout", "1s");
+
+  assert.equal(res.status, 3);
+  assert.match(res.out, /Nothing waited on the agent in wait-quiet\.md after 1s\./);
 });
 
 test("one list call covers a folder, keeps what waits on the agent, and prints it in full", async () => {

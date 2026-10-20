@@ -46,10 +46,14 @@ mdview comments list docs/ --waiting-on agent --full   # everything waiting on t
 mdview comments show 12 15                             # threads in full, with the source of their blocks
 mdview comments reply 12 -m "Which section should this move to?"
 mdview comments suggest-resolve 12 -m "Moved it under Rollout."
-mdview comments wait notes.md                          # blocks until you write something new
+mdview comments wait docs/                             # returns the moment anything there waits on the agent
 ```
 
 Agents reply and suggest that a thread is resolved. Only you resolve or reopen one, in the viewer, or with `--human` in a terminal. A suggested thread turns green, and replying to it reopens it.
+
+To keep an agent from reacting to each comment in turn, batch them. **Start batch** (or ⌥Enter) holds a comment as pending: you see it with a Pending chip, and agents see nothing. Once a batch is open, Enter adds to it and ⌘Enter sends it. **Send** in the header publishes everything at once, so the agent wakes once.
+
+`wait` returns within milliseconds of a comment while a viewer is open, because each viewer streams a doorbell event the moment the store changes and `wait` listens to it. With no viewer, `wait` checks the store itself every 100 ms. An agent should answer every thread waiting on it before it waits again, since anything left unanswered returns at once.
 
 Only you can delete, and only in the viewer: **Delete** on an open card removes the whole thread, and the × beside a reply removes that reply. Deleting is permanent. When a doc's last thread goes, mdview drops its stored versions too. [`skills/mdview-comments/SKILL.md`](skills/mdview-comments/SKILL.md) teaches an agent this loop. Copy it into your agent's skills folder.
 
