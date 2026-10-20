@@ -4,7 +4,8 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { parseArgs } from "node:util";
 import { startServer } from "../lib/server.mjs";
-import { openStore } from "../lib/store.mjs";
+import { openStore, storeHome } from "../lib/store.mjs";
+import { register } from "../lib/registry.mjs";
 import { toPosix } from "../lib/files.mjs";
 
 const USAGE = `Usage: mdview [file-or-folder] [options]
@@ -67,9 +68,16 @@ async function view(argv) {
     console.error(`mdview: comments are off because the comment store did not open: ${err.message}`);
     return null;
   });
-  const { url } = await startServer({ root, initial, port, store });
+  const { url, port: listening } = await startServer({ root, initial, port, store });
   console.log(`mdview serving ${root}`);
   console.log(`  ${url}`);
+
+  if (store) {
+    const unregister = register(storeHome(), { port: listening, root });
+    process.on("exit", unregister);
+    // SIGHUP stays default, so a viewer started under nohup keeps running when its terminal goes.
+    for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => process.exit(0));
+  }
 
   if (!values["no-open"]) {
     const opener = process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";

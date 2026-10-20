@@ -58,6 +58,14 @@ function post(pathname, body, overrides = {}) {
   });
 }
 
+async function until(check, timeoutMs = 3000) {
+  const deadline = Date.now() + timeoutMs;
+  while (!check()) {
+    if (Date.now() > deadline) throw new Error("timed out waiting");
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+}
+
 async function docJson(rel) {
   return JSON.parse((await get(`/api/doc?path=${encodeURIComponent(rel)}`)).body);
 }
@@ -237,6 +245,34 @@ test("the browser deletes threads and replies permanently, behind the same Origi
   assert.equal((await post(`/api/comments/${id}/delete`, {}, { Origin: "https://evil.example" })).status, 403);
   assert.equal((await post(`/api/comments/${id}/delete`, {})).status, 200);
   assert.throws(() => store.thread(id), /No thread/);
+});
+
+test("the doorbell rings at once for the viewer's own writes, and soon for other processes'", async () => {
+  const file = path.join(dir, "README.md");
+  const id = store.createThread({ file, content: await fs.readFile(file, "utf8"), blockIndex: 0, body: "x", author: AGENT });
+  const rings = [];
+  const req = http.get({ host: "127.0.0.1", port, path: "/api/store-events", headers: { Host: `127.0.0.1:${port}` } });
+  await new Promise((resolve) =>
+    req.on("response", (res) => {
+      res.on("data", (chunk) => {
+        if (String(chunk).includes("event: change")) rings.push(Date.now());
+      });
+      resolve();
+    }),
+  );
+
+  const browserWrite = Date.now();
+  await post(`/api/comments/${id}/messages`, { body: "a reply from the browser" });
+  await until(() => rings.length >= 1);
+  const cli = await openStore(home);
+  const cliWrite = Date.now();
+  cli.reply(id, "a reply from another process", AGENT);
+  cli.close();
+  await until(() => rings.length >= 2);
+  req.destroy();
+
+  assert.ok(rings[0] - browserWrite < 100, `the viewer's own write rang after ${rings[0] - browserWrite} ms`);
+  assert.ok(rings[1] - cliWrite < 400, `another process's write rang after ${rings[1] - cliWrite} ms`);
 });
 
 test("a write from another process streams a comments event", async () => {
