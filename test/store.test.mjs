@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { sha256 } from "../lib/blocks.mjs";
+import { parseBlocks } from "../lib/render.mjs";
 import { openStore, StoreError } from "../lib/store.mjs";
 
 const ADAM = { name: "adam", kind: "human" };
@@ -318,6 +319,118 @@ test("docsUnder finds tracked docs at any depth inside a folder, and nothing bes
     store.docsUnder(path.join(dir, "tree")).map((file) => path.relative(real, file)),
     ["tree/sub/nested.md", "tree/top.md"],
   );
+});
+
+test("pending comments stay out of agent views until the batch is sent", async () => {
+  const content = "Alpha.\n\nBeta.\n";
+  const file = await writeDoc("batch.md", content);
+  const visible = comment(file, content, { blockIndex: 0 });
+  store.reply(visible, "an agent answer", AGENT);
+  const draft = comment(file, content, { blockIndex: 1, body: "drafted", pending: true });
+  store.reply(visible, "a drafted follow-up", ADAM, { pending: true });
+
+  assert.deepEqual(
+    store.threadsAt(file).threads.map((t) => [t.id, t.waitingOn, t.messages.length]),
+    [[visible, "human", 2]],
+  );
+  assert.throws(() => store.thread(draft), /No thread/);
+  assert.deepEqual(
+    store.threadsAt(file, { includePending: true }).threads.map((t) => [t.id, t.pending, t.waitingOn, t.messages.length]),
+    [
+      [visible, false, "human", 3],
+      [draft, true, null, 1],
+    ],
+  );
+  assert.equal(store.pendingCount(), 2);
+
+  assert.equal(store.sendPending(ADAM), 2);
+  assert.equal(store.pendingCount(), 0);
+  assert.deepEqual(
+    store.threadsAt(file).threads.map((t) => [t.id, t.waitingOn, t.messages.at(-1).body]),
+    [
+      [visible, "agent", "a drafted follow-up"],
+      [draft, "agent", "drafted"],
+    ],
+  );
+});
+
+test("a batch sent after an agent's answer still reads as the latest word", async () => {
+  const file = await writeDoc("order.md", "Text.\n");
+  const id = comment(file, "Text.\n");
+  store.reply(id, "drafted before the agent answered", ADAM, { pending: true });
+  store.reply(id, "the agent's answer", AGENT);
+  store.sendPending(ADAM);
+
+  const { thread } = store.thread(id);
+
+  assert.deepEqual(thread.messages.map((m) => m.authorKind), ["human", "agent", "human"]);
+  assert.equal(thread.waitingOn, "agent");
+});
+
+test("discarding a batch drops drafts, and a doc with only drafts goes back to untracked", async () => {
+  const onlyDraft = await writeDoc("draft-only.md", "Draft.\n");
+  comment(onlyDraft, "Draft.\n", { pending: true });
+  const mixed = await writeDoc("mixed.md", "Kept.\n");
+  const kept = comment(mixed, "Kept.\n");
+  store.reply(kept, "a pending reply", ADAM, { pending: true });
+
+  assert.equal(store.discardPending(ADAM), 2);
+  assert.equal(store.findDoc(onlyDraft), undefined);
+  assert.deepEqual(store.thread(kept).thread.messages.map((m) => m.body), ["a comment"]);
+  assert.equal(store.pendingCount(), 0);
+});
+
+test("agents can neither see nor touch a human's draft thread", async () => {
+  const file = await writeDoc("hidden.md", "Text.\n");
+  const draft = comment(file, "Text.\n", { pending: true });
+
+  assert.throws(() => store.reply(draft, "found it", AGENT), /No thread/);
+  assert.throws(() => store.setStatus(draft, "suggested", AGENT, "done"), /No thread/);
+  assert.throws(() => store.createThread({ file, content: "Text.\n", blockIndex: 0, body: "x", author: AGENT, pending: true }), /Only a human/);
+  store.discardPending(ADAM);
+});
+
+test("a reopen inside a batch keeps the thread on the human until the batch is sent", async () => {
+  const file = await writeDoc("reopen-batch.md", "Text.\n");
+  const id = comment(file, "Text.\n");
+  store.setStatus(id, "suggested", AGENT, "done");
+  store.setStatus(id, "open", ADAM, undefined, { pending: true });
+
+  assert.deepEqual([store.thread(id).thread.status, store.thread(id).thread.waitingOn], ["open", "human"]);
+  store.sendPending(ADAM);
+  assert.equal(store.thread(id).thread.waitingOn, "agent");
+});
+
+test("a store from before batches gains the pending column and keeps every message sent", async () => {
+  const oldHome = path.join(dir, "old-home");
+  await fs.mkdir(oldHome);
+  const { DatabaseSync } = await import("node:sqlite");
+  const db = new DatabaseSync(path.join(oldHome, "mdview.sqlite3"));
+  const content = "Old text.\n";
+  db.exec(`
+    CREATE TABLE docs (id INTEGER PRIMARY KEY, path TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL);
+    CREATE TABLE versions (id INTEGER PRIMARY KEY, doc_id INTEGER NOT NULL, seq INTEGER NOT NULL, sha256 TEXT NOT NULL,
+      content TEXT NOT NULL, observed_at TEXT NOT NULL, UNIQUE (doc_id, seq));
+    CREATE TABLE threads (id INTEGER PRIMARY KEY, doc_id INTEGER NOT NULL, version_id INTEGER NOT NULL, block_sha TEXT NOT NULL,
+      block_ordinal INTEGER NOT NULL, quote TEXT NOT NULL, start INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'open',
+      status_by TEXT, status_at TEXT, created_at TEXT NOT NULL);
+    CREATE TABLE messages (id INTEGER PRIMARY KEY, thread_id INTEGER NOT NULL, author TEXT NOT NULL, author_kind TEXT NOT NULL,
+      body TEXT NOT NULL, version_id INTEGER NOT NULL, session TEXT, created_at TEXT NOT NULL);
+    PRAGMA user_version = 1;
+  `);
+  const at = new Date().toISOString();
+  db.prepare("INSERT INTO docs VALUES (1, '/nowhere/old.md', ?)").run(at);
+  db.prepare("INSERT INTO versions VALUES (1, 1, 1, ?, ?, ?)").run(sha256(content), content, at);
+  db.prepare("INSERT INTO threads VALUES (1, 1, 1, ?, 0, '', 0, 'open', NULL, NULL, ?)").run(parseBlocks(content)[0].sha, at);
+  db.prepare("INSERT INTO messages VALUES (1, 1, 'adam', 'human', 'an old comment', 1, NULL, ?)").run(at);
+  db.close();
+
+  const migrated = await openStore(oldHome);
+  const { thread } = migrated.thread(1);
+  const pendingCount = migrated.pendingCount();
+  migrated.close();
+
+  assert.deepEqual([thread.messages.map((m) => m.body), thread.waitingOn, pendingCount], [["an old comment"], "agent", 0]);
 });
 
 test("messages record the version that was latest when they were written", async () => {

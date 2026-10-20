@@ -25,9 +25,10 @@ const state = {
     activateAfterLoad: null,
     active: null,
     listMode: false,
-    drafts: new Map(),
-    pending: null,
-    composerDraft: "",
+    replyText: new Map(),
+    selection: null,
+    composerText: "",
+    pendingCount: 0,
   },
 };
 
@@ -494,13 +495,21 @@ const CARD_GAP_PX = 10;
 const DECORATIONS = ".heading-anchor, .code-copy";
 const HIGHLIGHTS =
   "highlights" in CSS
-    ? { open: new Highlight(), suggested: new Highlight(), active: new Highlight(), pending: new Highlight(), now: new Highlight() }
+    ? {
+        open: new Highlight(),
+        suggested: new Highlight(),
+        draft: new Highlight(),
+        active: new Highlight(),
+        selection: new Highlight(),
+        now: new Highlight(),
+      }
     : null;
 const NOW_READS_PREVIEW_CHARS = 140;
 const MARK_PREVIEW_CHARS = 80;
 
 // The list view's sections, in order. Each thread goes in the first one that takes it.
 const GROUPS = [
+  ["Pending, not sent", (t) => t.pending],
   ["Waiting on you", (t) => t.status !== "resolved" && t.state !== "outdated" && t.waitingOn === "human"],
   ["Waiting on the agent", (t) => t.status !== "resolved" && t.state !== "outdated"],
   ["On older versions", (t) => t.status !== "resolved"],
@@ -509,7 +518,7 @@ const GROUPS = [
 
 if (HIGHLIGHTS) {
   HIGHLIGHTS.active.priority = 1;
-  HIGHLIGHTS.pending.priority = 1;
+  HIGHLIGHTS.selection.priority = 1;
   for (const [name, highlight] of Object.entries(HIGHLIGHTS)) CSS.highlights.set(`mdview-comment-${name}`, highlight);
 }
 
@@ -653,10 +662,11 @@ async function loadComments() {
   if (state.doc !== doc) return;
   comments.threads = data.threads;
   comments.version = data.version;
+  comments.pendingCount = data.pendingCount ?? 0;
   renderComments();
-  const pending = comments.activateAfterLoad;
+  const queued = comments.activateAfterLoad;
   comments.activateAfterLoad = null;
-  if (pending !== null && threadById(pending)) activate(pending, { scroll: true });
+  if (queued !== null && threadById(queued)) activate(queued, { scroll: true });
 }
 
 function resetComments() {
@@ -665,7 +675,7 @@ function resetComments() {
   comments.threads = [];
   comments.version = null;
   comments.active = null;
-  comments.drafts.clear();
+  comments.replyText.clear();
   root.classList.remove("drawer-open");
   renderComments();
 }
@@ -702,12 +712,13 @@ function paintMarks() {
   for (const highlight of Object.values(HIGHLIGHTS)) highlight.clear();
   const comments = state.comments;
   for (const [id, range] of comments.ranges) {
-    HIGHLIGHTS[threadById(id)?.status === "suggested" ? "suggested" : "open"].add(range);
+    const thread = threadById(id);
+    HIGHLIGHTS[thread?.pending ? "draft" : thread?.status === "suggested" ? "suggested" : "open"].add(range);
     if (id === comments.active) HIGHLIGHTS.active.add(range);
   }
   const now = comments.nowRanges.get(comments.active);
   if (now) HIGHLIGHTS.now.add(now);
-  if (comments.pending) HIGHLIGHTS.pending.add(comments.pending.range);
+  if (comments.selection) HIGHLIGHTS.selection.add(comments.selection.range);
 }
 
 /**
@@ -747,7 +758,7 @@ function renderTocMarks() {
   layer.className = "toc-marks";
   layer.innerHTML = marks
     .map(({ id, thread, top }) => {
-      const kind = id === comments.active ? "active" : thread.status;
+      const kind = id === comments.active ? "active" : thread.pending ? "pending" : thread.status;
       const preview = truncate(thread.messages[0].body.replace(/\s+/g, " "), MARK_PREVIEW_CHARS);
       return `<button class="toc-mark" type="button" tabindex="-1" data-thread="${id}" data-kind="${kind}" style="top: ${top.toFixed(1)}px" title="#${id}: ${escapeHtml(preview)}"></button>`;
     })
@@ -771,6 +782,9 @@ function renderCommentChrome() {
   button.classList.toggle("attention", waiting > 0);
   button.title = `${unresolved.length} unresolved, ${waiting} waiting on you`;
   $("#comments-count").textContent = unresolved.length || "";
+  $("#batch").hidden = !comments.pendingCount;
+  $("#batch-count").textContent = `${comments.pendingCount} pending`;
+  $("#batch-count").title = "Comments and replies in your batch, across all docs. Agents see them only after you send.";
   const chip = $("#version");
   const version = comments.version;
   chip.hidden = !version;
@@ -835,6 +849,7 @@ function onLayoutChange() {
 
 function threadChips(t) {
   const chips = [];
+  if (t.pending) chips.push('<span class="chip chip-pending" title="In your batch. Agents see it after you send.">Pending</span>');
   if (t.status === "suggested") chips.push('<span class="chip chip-suggested">Agent suggests resolving</span>');
   if (t.status === "resolved") chips.push('<span class="chip">Resolved</span>');
   if (t.state === "carried") {
@@ -849,7 +864,9 @@ function threadChips(t) {
 /** One message. Its delete button shows on open cards; on the first message it deletes the whole thread. */
 function messageItem(m, first) {
   const time = Date.parse(m.createdAt);
-  const badge = m.authorKind === "agent" ? '<span class="badge">agent</span>' : "";
+  const badge =
+    (m.authorKind === "agent" ? '<span class="badge">agent</span>' : "") +
+    (m.pending ? '<span class="badge badge-pending" title="In your batch. Agents see it after you send.">pending</span>' : "");
   const remove = first
     ? '<button class="message-delete" type="button" data-action="delete-thread" title="Delete this thread permanently">×</button>'
     : `<button class="message-delete" type="button" data-action="delete-message" data-message="${m.id}" title="Delete this message permanently">×</button>`;
@@ -859,11 +876,20 @@ function messageItem(m, first) {
   </li>`;
 }
 
+/** The keys for the composer and reply boxes, which change once a batch is open. */
+function keyHint() {
+  return state.comments.pendingCount
+    ? "Enter adds to your batch · ⌘Enter sends the batch · ⌥Enter sends just this"
+    : "Enter sends · ⌥Enter starts a batch";
+}
+
+/** The open card's reply box and actions. A pending thread is a draft, so it can only be replied to or deleted. */
 function threadControls(t) {
   const placeholder = t.status === "suggested" ? "Reply and reopen…" : "Reply…";
-  const reopen = t.status === "open" ? "" : '<button class="btn" type="button" data-action="open">Reopen</button>';
-  const resolve = t.status === "resolved" ? "" : '<button class="btn btn-primary" type="button" data-action="resolved">Resolve</button>';
+  const reopen = t.pending || t.status === "open" ? "" : '<button class="btn" type="button" data-action="open">Reopen</button>';
+  const resolve = t.pending || t.status === "resolved" ? "" : '<button class="btn btn-primary" type="button" data-action="resolved">Resolve</button>';
   return `<textarea class="reply" rows="1" placeholder="${placeholder}" aria-label="Reply"></textarea>
+    <p class="key-hint">${keyHint()}</p>
     <div class="thread-actions"><button class="btn btn-danger" type="button" data-action="delete-thread" title="Delete this thread permanently">Delete</button><span class="spacer"></span>${reopen}${resolve}</div>`;
 }
 
@@ -888,7 +914,7 @@ function threadCard(t, expanded) {
   const hidden = t.messages.length - shown.length;
   if (hidden) items.splice(1, 0, `<li class="message more">${hidden} more</li>`);
   const quote = t.quote ? `<blockquote class="thread-quote">${escapeHtml(t.quote)}</blockquote>` : "";
-  return `<section class="thread${expanded ? " expanded" : ""}" data-thread="${t.id}" data-status="${t.status}">
+  return `<section class="thread${expanded ? " expanded" : ""}" data-thread="${t.id}" data-status="${t.status}" data-pending="${t.pending}">
     <header class="thread-head"><span class="thread-id">#${t.id}</span>${threadChips(t)}</header>
     ${quote}
     ${nowReads(t)}
@@ -940,7 +966,7 @@ function renderRail() {
   rail.style.minHeight = "";
   rail.innerHTML = railHead(listing, docked) + (listing ? railList() : railCards());
   for (const input of rail.querySelectorAll("textarea.reply")) {
-    input.value = comments.drafts.get(Number(input.closest(".thread").dataset.thread)) ?? "";
+    input.value = comments.replyText.get(Number(input.closest(".thread").dataset.thread)) ?? "";
     autosize(input);
   }
   const refocus = focused && rail.querySelector(`.thread[data-thread="${focused}"] textarea`);
@@ -1023,9 +1049,44 @@ function deactivate() {
   return true;
 }
 
+/**
+ * What a submit key does: "now" sends at once, "batch" adds to the batch, and
+ * "send" adds to the batch and sends it. Plain Enter sends now until a batch
+ * is open, then adds to it. ⌘Enter also sends the batch, and ⌥Enter does
+ * whichever of the two Enter does not.
+ */
+function submitMode(event) {
+  const batching = state.comments.pendingCount > 0;
+  if (event.altKey) return batching ? "now" : "batch";
+  if (event.metaKey || event.ctrlKey) return batching ? "send" : "now";
+  return batching ? "batch" : "now";
+}
+
+async function sendBatch() {
+  try {
+    const { sent } = await postJson("/api/comments/batch/send", {});
+    toast(`Sent ${sent} comment${sent === 1 ? "" : "s"} to the agent`);
+    await loadComments();
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
+async function discardBatch() {
+  const count = state.comments.pendingCount;
+  if (!confirm(`Discard ${count} pending comment${count === 1 ? "" : "s"}? This cannot be undone.`)) return;
+  try {
+    await postJson("/api/comments/batch/discard", {});
+    await loadComments();
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
 async function setThreadStatus(id, status) {
   try {
-    await postJson(`/api/comments/${id}/status`, { status });
+    // A reopen's note joins an open batch, so the agent hears about it with the rest.
+    await postJson(`/api/comments/${id}/status`, { status, pending: state.comments.pendingCount > 0 });
     if (status === "resolved" && state.comments.active === id) state.comments.active = null;
     await loadComments();
   } catch (err) {
@@ -1041,7 +1102,7 @@ async function deleteThread(id) {
   try {
     await postJson(`/api/comments/${id}/delete`, {});
     if (state.comments.active === id) state.comments.active = null;
-    state.comments.drafts.delete(id);
+    state.comments.replyText.delete(id);
     await loadComments();
   } catch (err) {
     toast(err.message);
@@ -1058,15 +1119,16 @@ async function deleteMessage(threadId, messageId) {
   }
 }
 
-async function sendReply(input) {
+async function sendReply(input, mode) {
   const id = Number(input.closest(".thread").dataset.thread);
   const body = input.value.trim();
   if (!body) return;
   input.disabled = true;
   try {
-    await postJson(`/api/comments/${id}/messages`, { body });
-    state.comments.drafts.delete(id);
-    await loadComments();
+    await postJson(`/api/comments/${id}/messages`, { body, pending: mode !== "now" });
+    state.comments.replyText.delete(id);
+    if (mode === "send") await sendBatch();
+    else await loadComments();
   } catch (err) {
     input.disabled = false;
     toast(err.message);
@@ -1099,7 +1161,7 @@ function openComposer() {
     return;
   }
   deactivate();
-  comments.pending = { ...anchor, range: range.cloneRange() };
+  comments.selection = { ...anchor, range: range.cloneRange() };
   const rects = range.getClientRects();
   const rect = rects[rects.length - 1] ?? range.getBoundingClientRect();
   const composer = $("#composer");
@@ -1108,8 +1170,12 @@ function openComposer() {
   composer.style.left = `${Math.max(8, Math.min(rect.left, innerWidth - composer.offsetWidth - 8)) + scrollX}px`;
   composer.style.top = `${rect.bottom + scrollY + 8}px`;
   $("#comment-btn").hidden = true;
+  const batching = comments.pendingCount > 0;
+  $("#composer-submit").textContent = batching ? "Add to batch" : "Comment";
+  $("#composer-alt").textContent = batching ? "Send just this" : "Start batch";
+  $("#composer-hint").textContent = keyHint();
   const input = $("#composer-text");
-  input.value = comments.composerDraft;
+  input.value = comments.composerText;
   autosize(input);
   input.focus({ preventScroll: true });
   paintMarks();
@@ -1118,30 +1184,39 @@ function openComposer() {
 function closeComposer() {
   if ($("#composer").hidden) return false;
   $("#composer").hidden = true;
-  state.comments.pending = null;
+  state.comments.selection = null;
   paintMarks();
   return true;
 }
 
-async function submitComment() {
+async function submitComment(mode) {
   const comments = state.comments;
   const input = $("#composer-text");
   const body = input.value.trim();
-  if (!body || !comments.pending) return;
-  const { blockIndex, quote, start } = comments.pending;
+  if (!body || !comments.selection) return;
+  const { blockIndex, quote, start } = comments.selection;
   try {
-    const { id } = await postJson("/api/comments", { path: state.doc.path, sha: state.doc.sha, blockIndex, quote, start, body });
-    comments.composerDraft = "";
+    const { id } = await postJson("/api/comments", {
+      path: state.doc.path,
+      sha: state.doc.sha,
+      blockIndex,
+      quote,
+      start,
+      body,
+      pending: mode !== "now",
+    });
+    comments.composerText = "";
     closeComposer();
     getSelection().removeAllRanges();
-    await loadComments();
+    if (mode === "send") await sendBatch();
+    else await loadComments();
     activate(id);
   } catch (err) {
     if (err.status !== 409) {
       toast(err.message);
       return;
     }
-    comments.composerDraft = input.value;
+    comments.composerText = input.value;
     closeComposer();
     toast("The doc changed while you typed. Select the text again; your draft is kept.");
     await loadDoc(state.doc.path, { keepScroll: true });
@@ -1181,7 +1256,7 @@ function initComments() {
     if (!input) return;
     if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
       event.preventDefault();
-      sendReply(input);
+      sendReply(input, submitMode(event));
     } else if (event.key === "Escape") {
       input.blur();
       deactivate();
@@ -1190,7 +1265,7 @@ function initComments() {
   rail.addEventListener("input", (event) => {
     const input = event.target.closest("textarea.reply");
     if (!input) return;
-    state.comments.drafts.set(Number(input.closest(".thread").dataset.thread), input.value);
+    state.comments.replyText.set(Number(input.closest(".thread").dataset.thread), input.value);
     autosize(input);
     scheduleLayout();
   });
@@ -1205,22 +1280,25 @@ function initComments() {
   const commentButton = $("#comment-btn");
   commentButton.addEventListener("mousedown", (event) => event.preventDefault());
   commentButton.addEventListener("click", openComposer);
-  $("#composer-submit").addEventListener("click", submitComment);
+  $("#composer-submit").addEventListener("click", () => submitComment(state.comments.pendingCount ? "batch" : "now"));
+  $("#composer-alt").addEventListener("click", () => submitComment(state.comments.pendingCount ? "now" : "batch"));
   $("#composer-cancel").addEventListener("click", () => {
-    state.comments.composerDraft = "";
+    state.comments.composerText = "";
     closeComposer();
   });
   $("#composer-text").addEventListener("keydown", (event) => {
     if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
       event.preventDefault();
-      submitComment();
+      submitComment(submitMode(event));
     } else if (event.key === "Escape") {
-      state.comments.composerDraft = "";
+      state.comments.composerText = "";
       closeComposer();
     }
   });
   $("#composer-text").addEventListener("input", (event) => autosize(event.target));
 
+  $("#batch-send").addEventListener("click", sendBatch);
+  $("#batch-discard").addEventListener("click", discardBatch);
   $("#version").addEventListener("click", toggleVersionsMenu);
   document.addEventListener("click", (event) => {
     if (!event.target.closest("#versions-menu, #version")) closeVersionsMenu();

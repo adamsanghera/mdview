@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { openStore } from "../lib/store.mjs";
 
 const BIN = fileURLToPath(new URL("../bin/mdview.mjs", import.meta.url));
 
@@ -182,6 +183,25 @@ test("--json prints the thread views", async () => {
       ["spec-agent", "agent", "hello"],
     ],
   );
+});
+
+test("agents never see a human's pending comments", async () => {
+  const doc = await writeDoc("drafts.md", "Visible.\n\nDrafted.\n");
+  const visible = startedId(mdview("add", doc, "--human", "--line", "1", "-m", "sent"));
+  const store = await openStore(env.MDVIEW_HOME);
+  const file = path.join(dir, doc);
+  const draft = store.createThread({ file, content: await fs.readFile(file, "utf8"), line: 3, body: "not sent", author: { name: "adam", kind: "human" }, pending: true });
+  store.close();
+
+  assert.match(mdview("list", doc).out, /1 open/);
+  assert.doesNotMatch(mdview("list", doc, "--all").out, new RegExp(`#${draft} `));
+  const onlyDrafts = await writeDoc("only-drafts.md", "Nothing sent yet.\n");
+  const reopened = await openStore(env.MDVIEW_HOME);
+  reopened.createThread({ file: path.join(dir, onlyDrafts), content: "Nothing sent yet.\n", line: 1, body: "draft", author: { name: "adam", kind: "human" }, pending: true });
+  reopened.close();
+  assert.equal(mdview("list", onlyDrafts).out, "No comments on only-drafts.md.\n");
+  assert.match(mdview("show", String(draft)).err, new RegExp(`No thread #${draft}`));
+  assert.match(mdview("show", String(visible)).out, new RegExp(`#${visible} open`));
 });
 
 test("no verb writes the doc", async () => {

@@ -183,6 +183,26 @@ test("stored versions render read-only, and the version list counts their thread
   assert.equal((await get("/api/doc?path=notes/plan.md&v=9")).status, 404);
 });
 
+test("the viewer batches comments, and agents see them only after Send", async () => {
+  const file = path.join(dir, "notes", "batch.md");
+  await fs.writeFile(file, "# Batch\n\nOne.\n\nTwo.\n\nThree.\n");
+  const doc = await docJson("notes/batch.md");
+  const draft = (blockIndex, body) => post("/api/comments", { path: "notes/batch.md", sha: doc.sha, blockIndex, body, pending: true });
+  await draft(1, "first");
+  await draft(2, "second");
+
+  const viewer = JSON.parse((await get(`/api/comments?path=notes/batch.md&sha=${doc.sha}`)).body);
+  assert.deepEqual([viewer.threads.map((t) => t.pending), viewer.pendingCount], [[true, true], 2]);
+  assert.deepEqual(store.threadsAt(file).threads, []);
+
+  assert.deepEqual((await post("/api/comments/batch/send", {})).body, { sent: 2 });
+  assert.deepEqual(store.threadsAt(file).threads.map((t) => t.waitingOn), ["agent", "agent"]);
+
+  await draft(3, "third, then thrown away");
+  assert.deepEqual((await post("/api/comments/batch/discard", {})).body, { discarded: 1 });
+  assert.equal(store.threadsAt(file, { includePending: true }).threads.length, 2);
+});
+
 test("a first comment on content that changed underneath gets 409", async () => {
   const opened = await docJson("notes/draft.md");
   await fs.writeFile(path.join(dir, "notes", "draft.md"), "# Draft\n\nRewritten by an agent.\n");

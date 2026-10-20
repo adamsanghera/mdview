@@ -28,6 +28,11 @@
     <button class="crumbs" id="crumbs" type="button"></button>
     <div class="meta" id="meta"></div>
     <button class="version-chip" id="version" type="button" hidden></button>
+    <span class="batch" id="batch" hidden>
+      <span class="batch-count" id="batch-count"></span>
+      <button class="btn" type="button" id="batch-discard">Discard</button>
+      <button class="btn btn-primary" type="button" id="batch-send">Send</button>
+    </span>
     <div class="actions">
       <button class="icon-btn comments-btn" id="comments-btn" title="Comments" aria-label="Comments" hidden>
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 2.5h9A1.5 1.5 0 0 1 14 4v5.5a1.5 1.5 0 0 1-1.5 1.5H8.5l-3 2.5V11h-2A1.5 1.5 0 0 1 2 9.5V4a1.5 1.5 0 0 1 1.5-1.5z"/></svg>
@@ -70,9 +75,12 @@
   </button>
   <div class="composer" id="composer" role="dialog" aria-label="New comment" hidden>
     <blockquote class="thread-quote" id="composer-quote"></blockquote>
-    <textarea id="composer-text" rows="2" placeholder="Comment for the agent… Enter sends, Shift+Enter adds a line"></textarea>
+    <textarea id="composer-text" rows="2" placeholder="Comment for the agent…"></textarea>
+    <p class="key-hint" id="composer-hint"></p>
     <div class="thread-actions">
       <button class="btn" type="button" id="composer-cancel">Cancel</button>
+      <span class="spacer"></span>
+      <button class="btn" type="button" id="composer-alt">Start batch</button>
       <button class="btn btn-primary" type="button" id="composer-submit">Comment</button>
     </div>
   </div>
