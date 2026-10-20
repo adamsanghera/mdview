@@ -16,6 +16,7 @@
   --suggested: #1a7f37;
   --outdated: #9a6700;
   --quote-bar: #d4a72c;
+  --danger: #cf222e;
   --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
   --topbar: 48px;
@@ -40,6 +41,7 @@
   --suggested: #3fb950;
   --outdated: #d29922;
   --quote-bar: #bb8009;
+  --danger: #f85149;
   color-scheme: dark;
 }
 
@@ -689,6 +691,20 @@ body {
   overflow: hidden;
 }
 .message.more { font-size: 12px; color: var(--text-faint); }
+.message-delete {
+  display: none;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.2;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+.thread.expanded .message:hover .message-delete { display: inline-block; }
+.message-delete:hover { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
 
 .thread textarea,
 .composer textarea {
@@ -721,6 +737,9 @@ body {
 .btn:hover { background: var(--hover); }
 .btn-primary { border-color: var(--accent); background: var(--accent); color: #fff; }
 .btn-primary:hover { background: color-mix(in srgb, var(--accent) 88%, black); }
+.btn-danger { color: var(--danger); }
+.btn-danger:hover { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.thread-actions .spacer { flex: 1; }
 
 .comment-btn {
   position: absolute;

@@ -48,7 +48,9 @@ mdview comments suggest-resolve 12 -m "Moved it under Rollout."
 mdview comments wait notes.md          # blocks until you write something new
 ```
 
-Agents reply and suggest that a thread is resolved. Only you resolve or reopen one, in the viewer, or with `--human` in a terminal. A suggested thread turns green, and replying to it reopens it. [`skills/mdview-comments/SKILL.md`](skills/mdview-comments/SKILL.md) teaches an agent this loop. Copy it into your agent's skills folder.
+Agents reply and suggest that a thread is resolved. Only you resolve or reopen one, in the viewer, or with `--human` in a terminal. A suggested thread turns green, and replying to it reopens it.
+
+Only you can delete, and only in the viewer: **Delete** on an open card removes the whole thread, and the × beside a reply removes that reply. Deleting is permanent. When a doc's last thread goes, mdview drops its stored versions too. [`skills/mdview-comments/SKILL.md`](skills/mdview-comments/SKILL.md) teaches an agent this loop. Copy it into your agent's skills folder.
 
 mdview never writes your docs. Comments live in `~/.mdview/mdview.sqlite3` (set `MDVIEW_HOME` to move it), keyed by each file's real path. Once a doc has a comment, mdview keeps a copy of each version of it that it sees, and each comment remembers the version it was made on:
 

@@ -205,6 +205,20 @@ test("the browser resolves, reopens and replies, but cannot suggest", async () =
   assert.equal((await post("/api/comments/999/status", { status: "open" })).status, 400);
 });
 
+test("the browser deletes threads and replies permanently, behind the same Origin check", async () => {
+  const file = path.join(dir, "README.md");
+  const id = store.createThread({ file, content: await fs.readFile(file, "utf8"), blockIndex: 0, body: "doomed", author: AGENT });
+  store.reply(id, "a reply", AGENT);
+  const [first, reply] = store.thread(id).thread.messages;
+
+  assert.equal((await post(`/api/comments/${id}/messages/${first.id}/delete`, {})).status, 400);
+  assert.equal((await post(`/api/comments/${id}/messages/${reply.id}/delete`, {})).status, 200);
+  assert.equal(store.thread(id).thread.messages.length, 1);
+  assert.equal((await post(`/api/comments/${id}/delete`, {}, { Origin: "https://evil.example" })).status, 403);
+  assert.equal((await post(`/api/comments/${id}/delete`, {})).status, 200);
+  assert.throws(() => store.thread(id), /No thread/);
+});
+
 test("a write from another process streams a comments event", async () => {
   const file = path.join(dir, "README.md");
   const id = store.createThread({ file, content: await fs.readFile(file, "utf8"), blockIndex: 1, body: "x", author: AGENT });

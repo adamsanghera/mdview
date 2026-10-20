@@ -166,6 +166,7 @@ test("malformed commands exit 2 and refused ones exit 1", async () => {
   const doc = await writeDoc("errors.md", "Same.\n\nSame.\n");
   [
     { desc: "unknown verb", args: ["bogus", "x"], status: 2, err: /unknown verb "bogus"/ },
+    { desc: "deleting is for the human, in the viewer", args: ["delete", "1"], status: 2, err: /unknown verb "delete"/ },
     { desc: "missing target", args: ["show"], status: 2, err: /missing <id>/ },
     { desc: "missing message", args: ["add", doc, "--line", "1"], status: 2, err: /needs a message/ },
     { desc: "bad line", args: ["add", doc, "--line", "zero", "-m", "x"], status: 2, err: /--line must be a line number/ },

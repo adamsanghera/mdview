@@ -787,11 +787,15 @@ function threadChips(t) {
   return chips.join("");
 }
 
-function messageItem(m) {
+/** One message. Its delete button shows on open cards; on the first message it deletes the whole thread. */
+function messageItem(m, first) {
   const time = Date.parse(m.createdAt);
   const badge = m.authorKind === "agent" ? '<span class="badge">agent</span>' : "";
+  const remove = first
+    ? '<button class="message-delete" type="button" data-action="delete-thread" title="Delete this thread permanently">×</button>'
+    : `<button class="message-delete" type="button" data-action="delete-message" data-message="${m.id}" title="Delete this message permanently">×</button>`;
   return `<li class="message" data-kind="${m.authorKind}">
-    <div class="message-meta"><span class="author">${escapeHtml(m.author)}</span>${badge}<span class="when" title="${escapeHtml(new Date(time).toLocaleString())}">${ago(time)} · v${m.versionSeq}</span></div>
+    <div class="message-meta"><span class="author">${escapeHtml(m.author)}</span>${badge}<span class="when" title="${escapeHtml(new Date(time).toLocaleString())}">${ago(time)} · v${m.versionSeq}</span>${remove}</div>
     <div class="message-body">${m.bodyHtml}</div>
   </li>`;
 }
@@ -801,7 +805,7 @@ function threadControls(t) {
   const reopen = t.status === "open" ? "" : '<button class="btn" type="button" data-action="open">Reopen</button>';
   const resolve = t.status === "resolved" ? "" : '<button class="btn btn-primary" type="button" data-action="resolved">Resolve</button>';
   return `<textarea class="reply" rows="1" placeholder="${placeholder}" aria-label="Reply"></textarea>
-    <div class="thread-actions">${reopen}${resolve}</div>`;
+    <div class="thread-actions"><button class="btn btn-danger" type="button" data-action="delete-thread" title="Delete this thread permanently">Delete</button><span class="spacer"></span>${reopen}${resolve}</div>`;
 }
 
 /** For an outdated thread: what its text became, and a link to the version it was made on. */
@@ -821,7 +825,7 @@ function truncate(text, max) {
 /** A thread card. Collapsed cards show the first and last messages; the open card shows all of them and its controls. */
 function threadCard(t, expanded) {
   const shown = expanded || t.messages.length <= 2 ? t.messages : [t.messages[0], t.messages.at(-1)];
-  const items = shown.map(messageItem);
+  const items = shown.map((m) => messageItem(m, m.id === t.messages[0].id));
   const hidden = t.messages.length - shown.length;
   if (hidden) items.splice(1, 0, `<li class="message more">${hidden} more</li>`);
   const quote = t.quote ? `<blockquote class="thread-quote">${escapeHtml(t.quote)}</blockquote>` : "";
@@ -969,6 +973,31 @@ async function setThreadStatus(id, status) {
   }
 }
 
+async function deleteThread(id) {
+  const thread = threadById(id);
+  const replies = thread.messages.length - 1;
+  const what = replies ? `thread #${id} and its ${replies} repl${replies === 1 ? "y" : "ies"}` : `thread #${id}`;
+  if (!confirm(`Delete ${what}? This cannot be undone.`)) return;
+  try {
+    await postJson(`/api/comments/${id}/delete`, {});
+    if (state.comments.active === id) state.comments.active = null;
+    state.comments.drafts.delete(id);
+    await loadComments();
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
+async function deleteMessage(threadId, messageId) {
+  if (!confirm("Delete this message? This cannot be undone.")) return;
+  try {
+    await postJson(`/api/comments/${threadId}/messages/${messageId}/delete`, {});
+    await loadComments();
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
 async function sendReply(input) {
   const id = Number(input.closest(".thread").dataset.thread);
   const body = input.value.trim();
@@ -1079,6 +1108,10 @@ function initComments() {
       root.classList.remove("drawer-open");
     } else if (action === "resolved" || action === "open") {
       setThreadStatus(Number(card.dataset.thread), action);
+    } else if (action === "delete-thread") {
+      deleteThread(Number(card.dataset.thread));
+    } else if (action === "delete-message") {
+      deleteMessage(Number(card.dataset.thread), Number(event.target.closest("[data-message]").dataset.message));
     } else if (card && !card.classList.contains("expanded") && !event.target.closest("a")) {
       activate(Number(card.dataset.thread), { scroll: true });
     }

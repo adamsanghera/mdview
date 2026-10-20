@@ -268,6 +268,42 @@ test("lastHumanMessage moves on human messages only", async () => {
   assert.ok(store.lastHumanMessage(file) > afterComment);
 });
 
+test("only a human deletes threads, and a doc's last thread takes its stored versions along", async () => {
+  const content = "One.\n\nTwo.\n";
+  const file = await writeDoc("delete.md", content);
+  const first = comment(file, content, { blockIndex: 0 });
+  const second = comment(file, content, { blockIndex: 1 });
+  store.reply(first, "an answer", AGENT);
+
+  assert.throws(() => store.deleteThread(first, AGENT), StoreError);
+  store.deleteThread(first, ADAM);
+  assert.throws(() => store.thread(first), /No thread/);
+  assert.equal(store.observe(file).version.seq, 1);
+
+  store.deleteThread(second, ADAM);
+  assert.equal(store.findDoc(file), undefined);
+  assert.equal(store.observe(file), null);
+
+  comment(file, content);
+  assert.equal(store.observe(file).version.seq, 1);
+});
+
+test("a human deletes a reply, but the first message goes only with its thread", async () => {
+  const file = await writeDoc("delete-message.md", "Text.\n");
+  const id = comment(file, "Text.\n");
+  store.reply(id, "a wrong answer", AGENT);
+  const [first, reply] = store.thread(id).thread.messages;
+
+  assert.throws(() => store.deleteMessage(id, reply.id, AGENT), StoreError);
+  assert.throws(() => store.deleteMessage(id, first.id, ADAM), /Delete the thread instead/);
+  assert.throws(() => store.deleteMessage(id, reply.id + 1000, ADAM), /has no message/);
+  store.deleteMessage(id, reply.id, ADAM);
+
+  const { thread } = store.thread(id);
+  assert.deepEqual(thread.messages.map((m) => m.body), ["a comment"]);
+  assert.equal(thread.waitingOn, "agent");
+});
+
 test("messages record the version that was latest when they were written", async () => {
   const file = await writeDoc("stamps.md", "Draft.\n");
   const id = comment(file, "Draft.\n");
