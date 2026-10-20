@@ -497,7 +497,7 @@ const HIGHLIGHTS =
     ? { open: new Highlight(), suggested: new Highlight(), active: new Highlight(), pending: new Highlight(), now: new Highlight() }
     : null;
 const NOW_READS_PREVIEW_CHARS = 140;
-const RULER_PREVIEW_CHARS = 80;
+const MARK_PREVIEW_CHARS = 80;
 
 // The list view's sections, in order. Each thread goes in the first one that takes it.
 const GROUPS = [
@@ -695,9 +695,9 @@ function renderComments() {
   paintMarks();
 }
 
-/** Paints every comment mark: the highlights in the text and the ticks on the scrollbar ruler. */
+/** Paints every comment mark: the highlights in the text and the ticks on the TOC's line. */
 function paintMarks() {
-  renderRuler();
+  renderTocMarks();
   if (!HIGHLIGHTS) return;
   for (const highlight of Object.values(HIGHLIGHTS)) highlight.clear();
   const comments = state.comments;
@@ -711,28 +711,55 @@ function paintMarks() {
 }
 
 /**
- * Draws a tick on the strip along the window's right edge for each comment
- * attached to text. A tick sits at its comment's share of the page height,
- * the same mapping the scrollbar uses, so the thumb covers a tick exactly
- * when its comment is on screen. The open thread's tick is drawn last, on top.
+ * Draws a tick on the TOC's left line for each comment attached to text, at
+ * the entry for the section the comment sits in. Within an entry, the tick's
+ * height is how far into the section the comment is, so several comments in
+ * one section spread out instead of stacking. Comments above the first entry
+ * go at its top. The open thread's tick is drawn last, on top.
  */
-function renderRuler() {
+function renderTocMarks() {
   const comments = state.comments;
-  const ruler = $("#comment-ruler");
-  const pageHeight = document.documentElement.scrollHeight;
-  const marks = [...comments.ranges]
-    .map(([id, range]) => ({ id, thread: threadById(id), top: range.getBoundingClientRect().top + scrollY }))
-    .filter((mark) => mark.thread)
-    .sort((a, b) => (a.id === comments.active) - (b.id === comments.active));
-  ruler.innerHTML = marks
+  const toc = $("#toc");
+  toc.querySelector(".toc-marks")?.remove();
+  const pageTop = (el) => el.getBoundingClientRect().top + scrollY;
+  const sections = [...toc.querySelectorAll("a[data-id]")]
+    .map((link) => ({ link, heading: document.getElementById(link.dataset.id) }))
+    .filter((s) => s.heading)
+    .map((s) => ({ link: s.link, top: pageTop(s.heading) }));
+  if (!sections.length || !comments.ranges.size) return;
+  const docEnd = $("#doc").getBoundingClientRect().bottom + scrollY;
+
+  const marks = [];
+  for (const [id, range] of comments.ranges) {
+    const thread = threadById(id);
+    if (!thread) continue;
+    const y = range.getBoundingClientRect().top + scrollY;
+    const index = Math.max(0, sections.findLastIndex((s) => s.top <= y));
+    const start = sections[index].top;
+    const end = sections[index + 1]?.top ?? docEnd;
+    const share = Math.min(1, Math.max(0, (y - start) / Math.max(1, end - start)));
+    const { link } = sections[index];
+    marks.push({ id, thread, top: link.offsetTop + share * link.offsetHeight });
+  }
+  marks.sort((a, b) => (a.id === comments.active) - (b.id === comments.active));
+
+  const layer = document.createElement("div");
+  layer.className = "toc-marks";
+  layer.innerHTML = marks
     .map(({ id, thread, top }) => {
       const kind = id === comments.active ? "active" : thread.status;
-      const preview = truncate(thread.messages[0].body.replace(/\s+/g, " "), RULER_PREVIEW_CHARS);
-      const offset = ((top / pageHeight) * 100).toFixed(3);
-      return `<button class="ruler-mark" type="button" tabindex="-1" data-thread="${id}" data-kind="${kind}" style="top: ${offset}%" title="#${id}: ${escapeHtml(preview)}"></button>`;
+      const preview = truncate(thread.messages[0].body.replace(/\s+/g, " "), MARK_PREVIEW_CHARS);
+      return `<button class="toc-mark" type="button" tabindex="-1" data-thread="${id}" data-kind="${kind}" style="top: ${top.toFixed(1)}px" title="#${id}: ${escapeHtml(preview)}"></button>`;
     })
     .join("");
-  ruler.hidden = !marks.length;
+  toc.append(layer);
+}
+
+/** Jumps straight to a thread's text, with no scroll animation, and opens the thread. */
+function jumpToThread(id) {
+  const range = state.comments.ranges.get(id);
+  if (range) scrollBy({ top: range.getBoundingClientRect().top - innerHeight / 3, behavior: "instant" });
+  activate(id);
 }
 
 function renderCommentChrome() {
@@ -968,7 +995,7 @@ function scheduleLayout() {
   requestAnimationFrame(() => {
     layoutQueued = false;
     layoutRail();
-    renderRuler();
+    renderTocMarks();
   });
 }
 
@@ -1217,9 +1244,9 @@ function initComments() {
   document.addEventListener("selectionchange", () => {
     if (getSelection().isCollapsed) $("#comment-btn").hidden = true;
   });
-  $("#comment-ruler").addEventListener("click", (event) => {
-    const mark = event.target.closest(".ruler-mark");
-    if (mark) activate(Number(mark.dataset.thread), { scroll: true });
+  $("#toc").addEventListener("click", (event) => {
+    const mark = event.target.closest(".toc-mark");
+    if (mark) jumpToThread(Number(mark.dataset.thread));
   });
   new ResizeObserver(scheduleLayout).observe($("#doc"));
 }
