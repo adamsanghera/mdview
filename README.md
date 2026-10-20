@@ -36,9 +36,30 @@ The sidebar and links reach only files under the root. A link that climbs above 
 
 The header shows word count, reading time and when the file last changed. Its buttons copy the file's Markdown, open it in Cursor, and switch the theme. The dot turns green while live reload is connected.
 
+## Comments for agents
+
+Select text in a doc and click **Comment** (or press ⌘⇧M) to leave a note for an agent. Threads float in the margin beside their text, and the agent answers from a terminal:
+
+```bash
+mdview comments list notes.md          # unresolved threads: whose turn, where they sit
+mdview comments show 12                # one thread, with the source of its block
+mdview comments reply 12 -m "Which section should this move to?"
+mdview comments suggest-resolve 12 -m "Moved it under Rollout."
+mdview comments wait notes.md          # blocks until you write something new
+```
+
+Agents reply and suggest that a thread is resolved. Only you resolve or reopen one, in the viewer, or with `--human` in a terminal. A suggested thread turns green, and replying to it reopens it. [`skills/mdview-comments/SKILL.md`](skills/mdview-comments/SKILL.md) teaches an agent this loop. Copy it into your agent's skills folder.
+
+mdview never writes your docs. Comments live in `~/.mdview/mdview.sqlite3` (set `MDVIEW_HOME` to move it), keyed by each file's real path. Once a doc has a comment, mdview keeps a copy of each version of it that it sees, and each comment remembers the version it was made on:
+
+- A comment follows the doc into later versions while its paragraph, heading, list item, code block or table row keeps the same text. Reflowing a paragraph or renumbering a list does not change that.
+- When the text changes, the comment is marked outdated and moves to the "On older versions" list. It shows what the text now reads and links to the version it was made on.
+
+The version chip in the header (`v7`) lists every stored version. Renaming or moving a doc loses its comments.
+
 ## Safety
 
-mdview listens on 127.0.0.1 only, refuses requests that name any other host (which blocks DNS rebinding), and serves only files under the root. Markdown may contain raw HTML, so point it at files you trust.
+mdview listens on 127.0.0.1 only, refuses requests that name any other host (which blocks DNS rebinding), and serves only files under the root. Comment writes must come from mdview's own page: they need its Origin and a JSON body, which other websites cannot send. Markdown may contain raw HTML, so point it at files you trust.
 
 ## Tests
 
