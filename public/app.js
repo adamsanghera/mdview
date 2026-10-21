@@ -259,17 +259,17 @@ function enhance(article) {
 
 /**
  * Lets a table wider than the text column grow into the space beside it,
- * centered on its place in the text, out to the edges of the main column and
- * never under the docked comment rail. A table wider than all of that scrolls
+ * centered on its place in the text: it grows equally on both sides, as far
+ * as the nearer edge of the main column allows. It may pass under the docked
+ * comment rail, whose cards float above it. A table wider than that scrolls
  * inside its box.
  */
 function layoutTables() {
   const wraps = $("#doc").querySelectorAll(".table-wrap");
   if (!wraps.length) return;
   const area = $(".content").getBoundingClientRect();
-  const rightEdge = root.classList.contains("rail-docked") ? $("#rail").getBoundingClientRect().left : area.right;
   const minLeft = area.left + TABLE_GUTTER_PX;
-  const maxRight = rightEdge - TABLE_GUTTER_PX;
+  const maxRight = area.right - TABLE_GUTTER_PX;
   for (const wrap of wraps) {
     wrap.style.width = "";
     wrap.style.marginLeft = "";
@@ -279,10 +279,10 @@ function layoutTables() {
     const natural = table.offsetWidth + (wrap.offsetWidth - wrap.clientWidth);
     table.style.width = "";
     if (natural <= home.width) continue;
-    const width = Math.min(natural, Math.max(home.width, maxRight - minLeft));
-    const left = Math.max(minLeft, Math.min(home.left + (home.width - width) / 2, maxRight - width));
+    const reach = Math.max(0, Math.min(home.left - minLeft, maxRight - home.right));
+    const width = Math.min(natural, home.width + 2 * reach);
     wrap.style.width = `${width}px`;
-    wrap.style.marginLeft = `${left - home.left}px`;
+    wrap.style.marginLeft = `${(home.width - width) / 2}px`;
   }
 }
 
