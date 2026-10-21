@@ -443,18 +443,22 @@ button.crumbs:focus-visible .copy-icon { opacity: 1; }
   cursor: zoom-in;
 }
 
-.table-wrap {
-  overflow-x: auto;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-}
+/* The table, not its scroll box, carries the frame, so a table inset in a wider box still looks flush with the text. */
+.table-wrap { overflow-x: auto; }
 .doc table {
   width: 100%;
-  border-collapse: collapse;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 0.9em;
   line-height: 1.5;
   font-variant-numeric: tabular-nums;
 }
+.doc tr:first-child > th:first-child { border-top-left-radius: 9px; }
+.doc tr:first-child > th:last-child { border-top-right-radius: 9px; }
+.doc tbody tr:last-child > td:first-child { border-bottom-left-radius: 9px; }
+.doc tbody tr:last-child > td:last-child { border-bottom-right-radius: 9px; }
 .doc th {
   background: var(--bg-soft);
   font-weight: 600;
@@ -854,5 +858,6 @@ button.crumbs:focus-visible .copy-icon { opacity: 1; }
   .topbar, .sidebar, .toc-pane, .progress, .toast, .code-copy, .rail, .comment-btn, .composer { display: none !important; }
   .doc { max-width: none; padding: 0; }
   .doc a { color: inherit; }
-  .doc .table-wrap { width: auto !important; margin-left: 0 !important; }
+  .doc .table-wrap { width: auto !important; margin-left: 0 !important; padding-left: 0 !important; }
+  .doc table { width: 100% !important; }
 }

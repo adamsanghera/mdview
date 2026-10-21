@@ -258,11 +258,14 @@ function enhance(article) {
 }
 
 /**
- * Lets a table wider than the text column grow into the space beside it,
- * centered on its place in the text: it grows equally on both sides, as far
- * as the nearer edge of the main column allows. It may pass under the docked
- * comment rail, whose cards float above it. A table wider than that scrolls
- * inside its box.
+ * Gives a table wider than the text column a scroll box centered on the text,
+ * reaching equally far past both sides (as far as the nearer edge of the main
+ * column allows), and sets the table in it the way Notion does: flush with
+ * the text's left edge, so scrolling right pans it across the space on the
+ * left. In order of preference, a table sits flush and runs right; wraps to
+ * fill from the text's left edge to the box's right edge; moves left just
+ * enough to fit without scrolling; or starts flush and scrolls. The box may
+ * pass under the docked comment rail, whose cards float above it.
  */
 function layoutTables() {
   const wraps = $("#doc").querySelectorAll(".table-wrap");
@@ -271,18 +274,28 @@ function layoutTables() {
   const minLeft = area.left + TABLE_GUTTER_PX;
   const maxRight = area.right - TABLE_GUTTER_PX;
   for (const wrap of wraps) {
-    wrap.style.width = "";
-    wrap.style.marginLeft = "";
-    const home = wrap.getBoundingClientRect();
     const table = wrap.querySelector("table");
-    table.style.width = "max-content";
-    const natural = table.offsetWidth + (wrap.offsetWidth - wrap.clientWidth);
+    wrap.style.width = wrap.style.marginLeft = wrap.style.paddingLeft = "";
     table.style.width = "";
+    const home = wrap.getBoundingClientRect();
+    const measure = (width) => {
+      table.style.width = width;
+      const measured = table.offsetWidth;
+      table.style.width = "";
+      return measured;
+    };
+    const natural = measure("max-content");
     if (natural <= home.width) continue;
+    const narrowest = measure("min-content");
     const reach = Math.max(0, Math.min(home.left - minLeft, maxRight - home.right));
-    const width = Math.min(natural, home.width + 2 * reach);
-    wrap.style.width = `${width}px`;
-    wrap.style.marginLeft = `${(home.width - width) / 2}px`;
+    const toRightEdge = home.width + reach;
+    const box = home.width + 2 * reach;
+    const width = natural <= toRightEdge ? natural : Math.max(toRightEdge, narrowest);
+    const inset = (width <= toRightEdge || width > box) ? reach : box - width;
+    wrap.style.width = `${box}px`;
+    wrap.style.marginLeft = `${-reach}px`;
+    wrap.style.paddingLeft = `${inset}px`;
+    table.style.width = `${width}px`;
   }
 }
 
