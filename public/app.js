@@ -4,6 +4,7 @@ const NARROW = matchMedia("(max-width: 820px)");
 const PREFERS_DARK = matchMedia("(prefers-color-scheme: dark)");
 const THEMES = ["auto", "light", "dark"];
 const SPY_OFFSET_PX = 80;
+const TABLE_GUTTER_PX = 24;
 const CHEVRON = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4l4 4-4 4"/></svg>';
 const COPY_ICON =
   '<svg class="copy-icon" viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5"/></svg>';
@@ -126,6 +127,7 @@ function toggleSidebar() {
   const hidden = root.classList.toggle("no-sidebar");
   localStorage.setItem("mdview.sidebar", hidden ? "hidden" : "shown");
   onLayoutChange();
+  layoutTables();
 }
 
 function showSidebar() {
@@ -255,6 +257,45 @@ function enhance(article) {
   }
 }
 
+/**
+ * Lets a table wider than the text column grow into the space beside it,
+ * centered on its place in the text, out to the edges of the main column and
+ * never under the docked comment rail. A table wider than all of that scrolls
+ * inside its box.
+ */
+function layoutTables() {
+  const wraps = $("#doc").querySelectorAll(".table-wrap");
+  if (!wraps.length) return;
+  const area = $(".content").getBoundingClientRect();
+  const rightEdge = root.classList.contains("rail-docked") ? $("#rail").getBoundingClientRect().left : area.right;
+  const minLeft = area.left + TABLE_GUTTER_PX;
+  const maxRight = rightEdge - TABLE_GUTTER_PX;
+  for (const wrap of wraps) {
+    wrap.style.width = "";
+    wrap.style.marginLeft = "";
+    const home = wrap.getBoundingClientRect();
+    const table = wrap.querySelector("table");
+    table.style.width = "max-content";
+    const natural = table.offsetWidth + (wrap.offsetWidth - wrap.clientWidth);
+    table.style.width = "";
+    if (natural <= home.width) continue;
+    const width = Math.min(natural, Math.max(home.width, maxRight - minLeft));
+    const left = Math.max(minLeft, Math.min(home.left + (home.width - width) / 2, maxRight - width));
+    wrap.style.width = `${width}px`;
+    wrap.style.marginLeft = `${left - home.left}px`;
+  }
+}
+
+let tablesQueued = false;
+function scheduleTableLayout() {
+  if (tablesQueued) return;
+  tablesQueued = true;
+  requestAnimationFrame(() => {
+    tablesQueued = false;
+    layoutTables();
+  });
+}
+
 function renderToc(toc) {
   const items = toc.filter((h) => h.level >= 2 && h.id);
   root.classList.toggle("no-toc", items.length < 2);
@@ -333,6 +374,7 @@ async function loadDoc(rel, { keepScroll = false, hash = location.hash, version 
     (doc.old ? versionBanner(doc) : "") + (doc.frontMatter ? renderFrontMatter(doc.frontMatter) : "") + doc.html;
   forgetRanges();
   enhance(article);
+  layoutTables();
   renderToc(doc.toc);
   renderCrumbs(doc.path);
   renderMeta();
@@ -452,6 +494,7 @@ addEventListener(
 );
 addEventListener("resize", updateScroll);
 addEventListener("resize", onLayoutChange);
+addEventListener("resize", scheduleTableLayout);
 
 /* Keyboard */
 
@@ -700,6 +743,7 @@ function renderComments() {
   }
   if (comments.active !== null && !threadById(comments.active)) comments.active = null;
   updateRailMode();
+  layoutTables();
   renderCommentChrome();
   renderRail();
   paintMarks();
