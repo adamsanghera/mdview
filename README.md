@@ -34,7 +34,7 @@ The sidebar and links reach only files under the root. A link that climbs above 
 | `/` | filter files (Enter opens the first match, Esc clears) |
 | `\` | show or hide the file list |
 
-The header shows word count, reading time and when the file last changed. Its buttons copy the file's Markdown, open it in Cursor, and switch the theme. The dot turns green while live reload is connected.
+The header shows word count, reading time and when the file last changed. Its buttons copy the file's Markdown, open it in Cursor, and switch the theme. The dot turns green while live reload is connected. Clicking the file path copies its absolute path.
 
 ## Comments for agents
 
@@ -49,7 +49,9 @@ mdview comments suggest-resolve 12 -m "Moved it under Rollout."
 mdview comments wait docs/                             # returns the moment anything there waits on the agent
 ```
 
-Agents reply and suggest that a thread is resolved. Only you resolve or reopen one, in the viewer, or with `--human` in a terminal. A suggested thread turns green, and replying to it reopens it.
+Agents reply and suggest that a thread is resolved. Only you resolve or reopen one, in the viewer, or with `--human` in a terminal. A suggested thread turns green, and replying to it reopens it. A thread the agent answered shows **Your turn** with a blue edge.
+
+While you write a comment, live reload waits, so the text never moves under it (the dot turns amber), and the comment anchors to the version you selected in even if an agent edited the file meanwhile.
 
 To keep an agent from reacting to each comment in turn, batch them. **Start batch** (or ⌥Enter) holds a comment as pending: you see it with a Pending chip, and agents see nothing. Once a batch is open, Enter adds to it and ⌘Enter sends it. **Send** in the header publishes everything at once, so the agent wakes once.
 
@@ -62,14 +64,19 @@ mdview never writes your docs. Comments live in `~/.mdview/mdview.sqlite3` (set 
 - A comment follows the doc into later versions while its paragraph, heading, list item, code block or table row keeps the same text. Reflowing a paragraph or renumbering a list does not change that.
 - When the text changes, the comment is marked outdated and moves to the "On older versions" list. It shows what the text now reads and links to the version it was made on.
 
-The version chip in the header (`v7`) lists every stored version. Renaming or moving a doc loses its comments.
+The version chip in the header (`v7`) lists every stored version. Renaming or moving a doc loses its comments. When a new mdview changes how the store is laid out, it copies the old store to `~/.mdview/backups/` before upgrading it.
 
 ## Safety
 
-mdview listens on 127.0.0.1 only, refuses requests that name any other host (which blocks DNS rebinding), and serves only files under the root. Comment writes must come from mdview's own page: they need its Origin and a JSON body, which other websites cannot send. Markdown may contain raw HTML, so point it at files you trust.
+mdview listens on 127.0.0.1 only, refuses requests that name any other host (which blocks DNS rebinding), and serves only files under the root. Comment writes must come from mdview's own page: they need its Origin and a JSON body, which other websites cannot send. Docs render with their raw HTML, but the page's Content-Security-Policy runs only mdview's own scripts, so a doc cannot act as you, and files opened from the root are sandboxed. Raw HTML can still load images from anywhere, so point mdview at files you trust.
 
-## Tests
+## Development
 
 ```bash
-npm test
+npm test               # everything; the browser tests drive headless Chrome and skip without it
+npm run test:browser   # just the browser tests
 ```
+
+The viewer is ES modules under `public/js/`, which the browser loads as they are. `public/js/lib/` holds the parts that never touch the page, so the unit tests in `test/ui/` import them directly. The stylesheet is split into files under `public/styles/`, in the order `index.css` imports them, and the server inlines them into `/static/style.css` on every request: there is no build step, and a CSS edit shows on reload. Browser tests look for Chrome at its macOS path, or at `MDVIEW_CHROME`.
+
+Changes under `public/` show on a page reload. Changes under `lib/` need running viewers restarted.
