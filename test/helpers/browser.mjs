@@ -60,7 +60,8 @@ export async function launchChrome() {
     async close() {
       proc.kill();
       await new Promise((resolve) => proc.once("exit", resolve));
-      fs.rmSync(profile, { recursive: true, force: true });
+      // Chrome's helper processes can still be writing to the profile for a moment after it exits.
+      fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     },
   };
 }
