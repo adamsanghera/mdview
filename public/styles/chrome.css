@@ -108,6 +108,7 @@ button.crumbs:focus-visible .copy-icon { opacity: 1; }
   transition: background 200ms;
 }
 .live.on { background: var(--live); }
+.live.held { background: var(--outdated); }
 .live.flash { animation: pulse 900ms ease-out; }
 @keyframes pulse {
   0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--live) 70%, transparent); }

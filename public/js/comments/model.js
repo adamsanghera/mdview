@@ -30,7 +30,7 @@ export async function loadComments() {
 
 export function resetComments() {
   const comments = state.comments;
-  closeComposer();
+  closeComposer({ release: false });
   comments.threads = [];
   comments.version = null;
   comments.active = null;

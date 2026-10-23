@@ -1,6 +1,6 @@
 /** What the human's comment controls send to the server. */
 import { $, postJson, toast } from "../dom.js";
-import { loadDoc } from "../doc.js";
+import { releaseReload, reloadDoc } from "../doc.js";
 import { state, threadById } from "../state.js";
 import { closeComposer } from "./composer.js";
 import { loadComments } from "./model.js";
@@ -84,31 +84,25 @@ export async function submitComment(mode) {
   const input = $("#composer-text");
   const body = input.value.trim();
   if (!body || !comments.selection) return;
-  const { blockIndex, quote, start } = comments.selection;
+  const { blockIndex, quote, start, sha } = comments.selection;
   try {
-    const { id } = await postJson("/api/comments", {
-      path: state.doc.path,
-      sha: state.doc.sha,
-      blockIndex,
-      quote,
-      start,
-      body,
-      pending: mode !== "now",
-    });
+    const { id } = await postJson("/api/comments", { path: state.doc.path, sha, blockIndex, quote, start, body, pending: mode !== "now" });
     comments.composerText = "";
-    closeComposer();
+    // The new thread is drawn on the text it was made on before a reload that waited moves the doc on.
+    closeComposer({ release: false });
     getSelection().removeAllRanges();
     if (mode === "send") await sendBatch();
     else await loadComments();
     activate(id);
+    releaseReload();
   } catch (err) {
     if (err.status !== 409) {
       toast(err.message);
       return;
     }
     comments.composerText = input.value;
-    closeComposer();
+    closeComposer({ release: false });
     toast("The doc changed while you typed. Select the text again; your draft is kept.");
-    await loadDoc(state.doc.path, { keepScroll: true });
+    await reloadDoc();
   }
 }

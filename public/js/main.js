@@ -7,6 +7,7 @@
  * through hook objects that this file fills in; comments/ builds on all of
  * them. Keeping it one-way is what lets each part be read, and tested, alone.
  */
+import { composerOpen } from "./comments/composer.js";
 import { forgetRanges, initComments, loadComments, onLayoutChange, resetComments } from "./comments/index.js";
 import { $, copyText, getJson, toast } from "./dom.js";
 import { docHooks, loadDoc, renderMeta, showError } from "./doc.js";
@@ -23,6 +24,7 @@ docHooks.leaving = resetComments;
 docHooks.replaced = forgetRanges;
 docHooks.loaded = loadComments;
 docHooks.commentsChanged = loadComments;
+docHooks.holdReload = composerOpen;
 sidebarHooks.resized = () => {
   onLayoutChange();
   layoutTables();

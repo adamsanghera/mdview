@@ -1,4 +1,5 @@
 /** The floating Comment button beside a selection, and the composer it opens. */
+import { releaseReload } from "../doc.js";
 import { $, autosize, toast } from "../dom.js";
 import { keyHint } from "../lib/keys.js";
 import { state } from "../state.js";
@@ -32,7 +33,8 @@ export function openComposer() {
     return;
   }
   deactivate();
-  comments.selection = { ...anchor, range: range.cloneRange() };
+  // The version the selection came from, so the comment anchors to what was selected even if the doc moves on before it is sent.
+  comments.selection = { ...anchor, sha: state.doc.sha, range: range.cloneRange() };
   const rects = range.getClientRects();
   const rect = rects[rects.length - 1] ?? range.getBoundingClientRect();
   const composer = $("#composer");
@@ -52,10 +54,17 @@ export function openComposer() {
   paintMarks();
 }
 
-export function closeComposer() {
+/** Live reload waits while this is true, so the text never moves under a comment being written. */
+export function composerOpen() {
+  return !$("#composer").hidden;
+}
+
+/** Closes the composer. Then, unless `release` is false, a live reload that waited for it applies. */
+export function closeComposer({ release = true } = {}) {
   if ($("#composer").hidden) return false;
   $("#composer").hidden = true;
   state.comments.selection = null;
   paintMarks();
+  if (release) releaseReload();
   return true;
 }

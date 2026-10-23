@@ -10,13 +10,19 @@ import { layoutTables } from "./tables.js";
 const COPY_ICON =
   '<svg class="copy-icon" viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5"/></svg>';
 
+const LIVE_ON = "Live reload: on. The page updates when the file changes.";
+
 /**
  * Set by main.js, so this module need not know about comments. `leaving`
  * runs before another doc (or an error) replaces this one, `replaced` right
  * after the article's HTML changes, `loaded` once the doc is on screen, and
  * `commentsChanged` when the server reports a write to the comment store.
+ * While `holdReload` returns true, a change to the file waits for
+ * releaseReload instead of reloading the page.
  */
-export const docHooks = { leaving() {}, replaced() {}, loaded() {}, commentsChanged() {} };
+export const docHooks = { leaving() {}, replaced() {}, loaded() {}, commentsChanged() {}, holdReload: () => false };
+
+let reloadWaiting = false;
 
 function renderFrontMatter(text) {
   return `<details class="frontmatter"><summary>Front matter</summary><pre>${escapeHtml(text)}</pre></details>`;
@@ -118,7 +124,10 @@ export async function loadDoc(rel, { keepScroll = false, hash = location.hash, v
   const sameDoc = state.doc?.path === doc.path;
   state.doc = doc;
   state.viewVersion = doc.old ? doc.version.seq : null;
-  if (!sameDoc) docHooks.leaving();
+  if (!sameDoc) {
+    setReloadWaiting(false);
+    docHooks.leaving();
+  }
   const canonical = `/view/${encodePath(doc.path)}${state.viewVersion ? `?v=${state.viewVersion}` : ""}${hash || ""}`;
   if (location.pathname + location.search + location.hash !== canonical) history.replaceState(null, "", canonical);
 
@@ -146,6 +155,30 @@ export async function loadDoc(rel, { keepScroll = false, hash = location.hash, v
   docHooks.loaded();
 }
 
+function setReloadWaiting(waiting) {
+  reloadWaiting = waiting;
+  const live = $("#live");
+  live.classList.toggle("held", waiting);
+  if (waiting) live.title = "Live reload: waiting until you finish the comment you are writing";
+  else if (live.classList.contains("on")) live.title = LIVE_ON;
+}
+
+/** Reloads the doc in place because its file changed, keeping the scroll position. */
+export async function reloadDoc() {
+  setReloadWaiting(false);
+  await loadDoc(state.doc?.path ?? state.events.rel, { keepScroll: true });
+  const live = $("#live");
+  live.classList.remove("flash");
+  void live.offsetWidth;
+  live.classList.add("flash");
+  refreshTree();
+}
+
+/** Applies a reload that waited on docHooks.holdReload, if one did. */
+export function releaseReload() {
+  if (reloadWaiting) reloadDoc();
+}
+
 function watch(rel) {
   if (state.events?.rel === rel) return;
   state.events?.source.close();
@@ -154,18 +187,15 @@ function watch(rel) {
   const source = new EventSource(`/api/events?path=${encodeURIComponent(rel)}`);
   source.onopen = () => {
     live.classList.add("on");
-    live.title = "Live reload: on. The page updates when the file changes.";
+    if (!reloadWaiting) live.title = LIVE_ON;
   };
   source.onerror = () => {
     live.classList.remove("on");
     live.title = "Live reload: reconnecting";
   };
-  source.addEventListener("change", async () => {
-    await loadDoc(state.doc?.path ?? rel, { keepScroll: true });
-    live.classList.remove("flash");
-    void live.offsetWidth;
-    live.classList.add("flash");
-    refreshTree();
+  source.addEventListener("change", () => {
+    if (docHooks.holdReload()) setReloadWaiting(true);
+    else reloadDoc();
   });
   source.addEventListener("comments", () => docHooks.commentsChanged());
   state.events = { rel, source };
