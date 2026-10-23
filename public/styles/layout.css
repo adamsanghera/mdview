@@ -10,7 +10,7 @@
 }
 
 .sidebar {
-  flex: 0 0 280px;
+  flex: 0 0 var(--sidebar-width);
   padding: 14px 10px 40px;
   background: var(--bg-sidebar);
   border-right: 1px solid var(--border);
@@ -20,7 +20,7 @@
 .content { flex: 1 1 auto; min-width: 0; }
 
 .toc-pane {
-  flex: 0 0 248px;
+  flex: 0 0 var(--toc-width);
   padding: 40px 16px 40px 4px;
 }
 .no-toc .toc-pane { visibility: hidden; }

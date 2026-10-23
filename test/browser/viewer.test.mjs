@@ -144,3 +144,20 @@ test("clicking a comment's tick on the outline opens its thread", { skip: chrome
   await page.waitFor(() => document.querySelector("#rail .thread.expanded"), { what: "the thread to open" });
   assert.deepEqual(await highlighted(page, "active"), ["The end."]);
 });
+
+test("the outline gives up its column to the comment rail only when both do not fit", { skip: chromeMissing }, async (t) => {
+  const { page } = await setup(t, { width: 1512, height: 900, before: (v) => threadOn(v, "The end.") });
+  const layout = () =>
+    page.eval(() => ({
+      docked: document.documentElement.classList.contains("rail-docked"),
+      outline: document.querySelector("#toc-pane").offsetWidth > 0,
+      ticks: [...document.querySelectorAll("#toc .toc-mark")].filter((tick) => tick.offsetParent).length,
+    }));
+  await page.waitFor(() => document.documentElement.classList.contains("rail-docked"), { what: "the rail to dock" });
+  assert.deepEqual(await layout(), { docked: true, outline: false, ticks: 0 }, "with the file list open, the outline yields");
+
+  await page.eval(() => document.querySelector("#toggle-sidebar").dispatchEvent(new MouseEvent("click", { bubbles: true })));
+  await page.waitFor(() => document.querySelector("#toc-pane").offsetWidth > 0, { what: "the outline to come back" });
+  await page.waitFor(() => document.querySelector("#toc .toc-mark"), { what: "the tick" });
+  assert.deepEqual(await layout(), { docked: true, outline: true, ticks: 1 }, "with the file list closed, both fit");
+});

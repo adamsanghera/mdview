@@ -2,23 +2,32 @@
 import { $, autosize, root } from "../dom.js";
 import { stackCards } from "../lib/card-stack.js";
 import { railHead, railList, threadCard } from "../lib/cards.js";
-import { railFits } from "../lib/layout.js";
+import { railLayout } from "../lib/layout.js";
 import { SPY_OFFSET_PX } from "../scroll.js";
 import { state } from "../state.js";
 import { paintMarks, renderTocMarks } from "./marks.js";
 
-// RAIL_WIDTH_PX and RAIL_GAP_PX must match .rail-docked in styles/rail.css.
-const RAIL_WIDTH_PX = 300;
-const RAIL_GAP_PX = 24;
 const CARD_GAP_PX = 10;
 
-/** Docks the rail beside the doc when there is room for both. Otherwise it opens as a drawer. */
+const tokenPx = (name) => parseFloat(getComputedStyle(root).getPropertyValue(name));
+
+/**
+ * Docks the rail beside the doc when there is room, taking the outline's
+ * column only if it must (see railLayout). Otherwise the rail opens as a
+ * drawer. Widths are measured with the outline in place.
+ */
 export function updateRailMode() {
   const comments = state.comments;
-  root.classList.toggle("has-comments", comments.threads.length > 0);
-  const wanted = comments.listMode || comments.threads.some((t) => t.status !== "resolved");
-  const docWidth = parseFloat(getComputedStyle($("#doc")).maxWidth);
-  const docked = wanted && railFits({ contentWidth: $(".content").clientWidth, docWidth, railWidth: RAIL_WIDTH_PX, railGap: RAIL_GAP_PX });
+  root.classList.remove("toc-yields");
+  const { docked, tocYields } = railLayout({
+    wanted: comments.listMode || comments.threads.some((t) => t.status !== "resolved"),
+    content: $(".content").clientWidth,
+    toc: $("#toc-pane").offsetWidth,
+    doc: parseFloat(getComputedStyle($("#doc")).maxWidth),
+    rail: tokenPx("--rail-width"),
+    gap: tokenPx("--rail-gap"),
+  });
+  root.classList.toggle("toc-yields", tocYields);
   root.classList.toggle("rail-docked", docked);
   if (docked) root.classList.remove("drawer-open");
 }

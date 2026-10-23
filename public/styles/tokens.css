@@ -44,9 +44,16 @@
   --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.18);
   --shadow-panel: 0 8px 30px rgba(15, 23, 42, 0.16);
 
+  /* Layout widths. js/comments/rail.js reads --rail-width and --rail-gap with parseFloat, so they stay in px. */
+  --topbar: 48px;
+  --doc-width: 47rem;
+  --sidebar-width: 280px;
+  --toc-width: 248px;
+  --rail-width: 300px;
+  --rail-gap: 24px;
+
   --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
-  --topbar: 48px;
   color-scheme: light;
 }
 

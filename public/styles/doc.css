@@ -1,5 +1,5 @@
 .doc {
-  max-width: 47rem;
+  max-width: var(--doc-width);
   margin: 0 auto;
   padding: 44px 40px 140px;
   font-size: 16.5px;

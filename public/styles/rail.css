@@ -14,10 +14,9 @@
 
 .rail { display: none; }
 
-/* RAIL_WIDTH_PX and RAIL_GAP_PX in js/comments/rail.js must match the rail's width and gap here. */
-.rail-docked .content { display: flex; justify-content: center; align-items: flex-start; gap: 24px; }
-.rail-docked .doc { flex: 0 1 47rem; min-width: 0; margin: 0; }
-.rail-docked .rail { display: block; position: relative; flex: 0 0 300px; padding-top: 18px; }
+.rail-docked .content { display: flex; justify-content: center; align-items: flex-start; gap: var(--rail-gap); }
+.rail-docked .doc { flex: 0 1 var(--doc-width); min-width: 0; margin: 0; }
+.rail-docked .rail { display: block; position: relative; flex: 0 0 var(--rail-width); padding-top: 18px; }
 .rail-docked .rail.listing {
   position: sticky;
   top: var(--topbar);
@@ -43,9 +42,8 @@
   box-shadow: var(--shadow-panel);
 }
 
-@media (max-width: 1639px) {
-  .has-comments .toc-pane { display: none; }
-}
+/* Set by js/comments/rail.js when the docked rail fits only without the outline's column. */
+.toc-yields .toc-pane { display: none; }
 
 .rail-head {
   display: flex;
