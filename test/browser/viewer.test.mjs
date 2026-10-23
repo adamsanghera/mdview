@@ -113,6 +113,7 @@ test("resolving a thread clears its highlight", { skip: chromeMissing }, async (
 
 test("live reload shows the file's new text", { skip: chromeMissing }, async (t) => {
   const { page, viewer } = await setup(t);
+  await page.waitFor(() => document.querySelector("#live").classList.contains("on"), { what: "live reload to connect" });
   await viewer.write("plan.md", PLAN.replace("The end.", "The real end."));
   await page.waitFor(() => document.querySelector("#doc").textContent.includes("The real end."), { what: "the reload" });
 });
