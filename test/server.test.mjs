@@ -304,3 +304,11 @@ test("a write from another process streams a comments event", async () => {
 
   assert.match(stream, /event: comments/);
 });
+
+test("the stylesheet is served as one bundle of the files under public/styles", async () => {
+  const res = await get("/static/style.css");
+  assert.equal(res.status, 200);
+  assert.match(res.headers["content-type"], /^text\/css/);
+  assert.match(res.body, /\/\* tokens\.css \*\/\n:root \{/);
+  assert.doesNotMatch(res.body, /@import/);
+});

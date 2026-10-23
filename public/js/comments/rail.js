@@ -7,7 +7,7 @@ import { SPY_OFFSET_PX } from "../scroll.js";
 import { state } from "../state.js";
 import { paintMarks, renderTocMarks } from "./marks.js";
 
-// RAIL_WIDTH_PX and RAIL_GAP_PX must match .rail-docked in style.css.
+// RAIL_WIDTH_PX and RAIL_GAP_PX must match .rail-docked in styles/rail.css.
 const RAIL_WIDTH_PX = 300;
 const RAIL_GAP_PX = 24;
 const CARD_GAP_PX = 10;

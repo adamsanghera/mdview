@@ -1,0 +1,79 @@
+.comments-btn { position: relative; width: auto; min-width: 32px; padding: 0 7px; grid-auto-flow: column; gap: 5px; }
+.comments-btn .count { font-size: 12px; font-variant-numeric: tabular-nums; }
+.comments-btn .count:empty { display: none; }
+.comments-btn.attention::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  right: 3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--suggested);
+}
+
+.rail { display: none; }
+
+/* RAIL_WIDTH_PX and RAIL_GAP_PX in js/comments/rail.js must match the rail's width and gap here. */
+.rail-docked .content { display: flex; justify-content: center; align-items: flex-start; gap: 24px; }
+.rail-docked .doc { flex: 0 1 47rem; min-width: 0; margin: 0; }
+.rail-docked .rail { display: block; position: relative; flex: 0 0 300px; padding-top: 18px; }
+.rail-docked .rail.listing {
+  position: sticky;
+  top: var(--topbar);
+  max-height: calc(100vh - var(--topbar));
+  overflow-y: auto;
+  padding-bottom: 40px;
+  scrollbar-width: thin;
+}
+.rail:not(.listing) .thread { position: absolute; left: 0; right: 0; }
+
+.drawer-open .rail {
+  display: block;
+  position: fixed;
+  top: var(--topbar);
+  right: 0;
+  bottom: 0;
+  z-index: 26;
+  width: min(360px, 100vw);
+  padding: 14px 14px 40px;
+  overflow-y: auto;
+  background: var(--bg);
+  border-left: 1px solid var(--border);
+  box-shadow: -8px 0 30px rgba(0, 0, 0, 0.12);
+}
+
+@media (max-width: 1639px) {
+  .has-comments .toc-pane { display: none; }
+}
+
+.rail-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 12.5px;
+  color: var(--text-faint);
+}
+.rail-group {
+  margin: 18px 0 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.rail-group span { font-weight: 400; }
+.rail-empty { font-size: 13px; color: var(--text-faint); }
+.listing .thread + .thread { margin-top: 10px; }
+
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--accent);
+  cursor: pointer;
+}
+.link:hover { text-decoration: underline; }

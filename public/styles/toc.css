@@ -1,0 +1,41 @@
+.toc-title {
+  margin: 0 0 10px 14px;
+  color: var(--text-faint);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+#toc a {
+  display: block;
+  padding: 4px 10px 4px 14px;
+  border-left: 2px solid var(--border);
+  color: var(--text-soft);
+  font-size: 13px;
+  line-height: 1.4;
+  text-decoration: none;
+}
+#toc a.l3 { padding-left: 26px; }
+#toc a.l4 { padding-left: 38px; font-size: 12.5px; }
+#toc a:hover { color: var(--text); }
+#toc a.active { border-left-color: var(--accent); color: var(--accent); }
+
+/* Comment ticks ride the TOC's left line. A link's 2px border spans x 0-2 of #toc, so a tick centered on it starts at left -4px. */
+#toc { position: relative; }
+.toc-mark {
+  position: absolute;
+  left: -4px;
+  width: 10px;
+  height: 4px;
+  margin-top: -2px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: var(--quote-bar);
+  box-shadow: 0 0 0 1.5px var(--bg);
+  cursor: pointer;
+}
+.toc-mark[data-kind="suggested"] { background: var(--suggested); }
+.toc-mark[data-kind="pending"] { background: var(--text-faint); }
+.toc-mark[data-kind="active"] { left: -6px; width: 14px; height: 6px; margin-top: -3px; }
+.toc-mark:hover { left: -6px; width: 14px; }

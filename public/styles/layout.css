@@ -1,0 +1,26 @@
+.layout { display: flex; align-items: flex-start; }
+
+.sidebar,
+.toc-pane {
+  position: sticky;
+  top: var(--topbar);
+  height: calc(100vh - var(--topbar));
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.sidebar {
+  flex: 0 0 280px;
+  padding: 14px 10px 40px;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+}
+.no-sidebar .sidebar { display: none; }
+
+.content { flex: 1 1 auto; min-width: 0; }
+
+.toc-pane {
+  flex: 0 0 248px;
+  padding: 40px 16px 40px 4px;
+}
+.no-toc .toc-pane { visibility: hidden; }

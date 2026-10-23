@@ -1,0 +1,13 @@
+/* Highlight pseudo-elements do not reliably read custom properties, so the colors are spelled out per theme. */
+::highlight(mdview-comment-open) { background-color: rgba(250, 204, 21, 0.3); }
+::highlight(mdview-comment-suggested) { background-color: rgba(45, 164, 78, 0.2); }
+::highlight(mdview-comment-active),
+::highlight(mdview-comment-selection) { background-color: rgba(250, 204, 21, 0.6); }
+::highlight(mdview-comment-draft) { background-color: rgba(140, 149, 159, 0.22); text-decoration: underline dashed rgba(140, 149, 159, 0.9); }
+[data-theme="dark"] ::highlight(mdview-comment-open) { background-color: rgba(250, 204, 21, 0.2); }
+[data-theme="dark"] ::highlight(mdview-comment-suggested) { background-color: rgba(63, 185, 80, 0.22); }
+[data-theme="dark"] ::highlight(mdview-comment-active),
+[data-theme="dark"] ::highlight(mdview-comment-selection) { background-color: rgba(250, 204, 21, 0.42); }
+[data-theme="dark"] ::highlight(mdview-comment-draft) { background-color: rgba(110, 118, 129, 0.25); text-decoration: underline dashed rgba(139, 148, 158, 0.9); }
+::highlight(mdview-comment-now) { background-color: rgba(47, 111, 235, 0.14); }
+[data-theme="dark"] ::highlight(mdview-comment-now) { background-color: rgba(106, 167, 255, 0.18); }

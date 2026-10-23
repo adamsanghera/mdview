@@ -1,0 +1,29 @@
+.comment-btn {
+  position: absolute;
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--bg);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.14);
+  font: 600 12.5px var(--font);
+  color: var(--text);
+  cursor: pointer;
+}
+.comment-btn:hover { border-color: var(--accent); color: var(--accent); }
+.comment-btn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linejoin: round; }
+
+.composer {
+  position: absolute;
+  z-index: 30;
+  width: 340px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--bg);
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.2);
+}
+.composer .thread-quote { margin-bottom: 0; }

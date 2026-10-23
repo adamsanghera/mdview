@@ -1,0 +1,7 @@
+@media print {
+  .topbar, .sidebar, .toc-pane, .progress, .toast, .code-copy, .rail, .comment-btn, .composer { display: none !important; }
+  .doc { max-width: none; padding: 0; }
+  .doc a { color: inherit; }
+  .doc .table-wrap { width: auto !important; margin-left: 0 !important; padding-left: 0 !important; }
+  .doc table { width: 100% !important; }
+}
