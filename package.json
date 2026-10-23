@@ -13,7 +13,8 @@
   },
   "scripts": {
     "start": "node --disable-warning=ExperimentalWarning bin/mdview.mjs",
-    "test": "node --disable-warning=ExperimentalWarning --test"
+    "test": "node --disable-warning=ExperimentalWarning --test \"test/**/*.test.mjs\"",
+    "test:browser": "node --disable-warning=ExperimentalWarning --test \"test/browser/*.test.mjs\""
   },
   "dependencies": {
     "github-slugger": "^2.0.0",
