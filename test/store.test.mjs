@@ -406,12 +406,41 @@ test("a reopen inside a batch keeps the thread on the human until the batch is s
   assert.equal(store.thread(id).thread.waitingOn, "agent");
 });
 
-test("a store from before batches gains the pending column and keeps every message sent", async () => {
-  const oldHome = path.join(dir, "old-home");
+test("a reply to a draft thread joins the draft, so it can never be sent ahead of the comment", async () => {
+  const file = await writeDoc("draft-reply.md", "Text.\n");
+  const id = comment(file, "Text.\n", { body: "the comment", pending: true });
+  store.reply(id, "a reply sent right away", ADAM, { pending: false });
+
+  assert.equal(store.pendingCount(), 2);
+  assert.throws(() => store.thread(id), /No thread/);
+  store.sendPending(ADAM);
+  assert.deepEqual(store.thread(id).thread.messages.map((m) => m.body), ["the comment", "a reply sent right away"]);
+});
+
+test("whose turn it is follows the last sent word, and a suggestion waits on the human", async () => {
+  const file = await writeDoc("turns.md", "Text.\n");
+  const id = comment(file, "Text.\n");
+  const turn = () => store.thread(id).thread.waitingOn;
+
+  assert.equal(turn(), "agent");
+  store.reply(id, "a question back", AGENT);
+  assert.equal(turn(), "human");
+  store.setStatus(id, "suggested", AGENT, "done");
+  assert.equal(turn(), "human");
+  store.setStatus(id, "resolved", ADAM);
+  assert.equal(turn(), null);
+  assert.deepEqual(store.waitingOnAgent({ files: [file] }), []);
+  store.setStatus(id, "open", ADAM);
+  assert.equal(turn(), "agent");
+  assert.deepEqual(store.waitingOnAgent({ files: [file] }), [id]);
+});
+
+/** Writes a store with the tables of an older mdview, one thread on `content`, and the given messages. */
+async function oldStore(name, { pendingColumn, version, messages, content = "Old text.\n" }) {
+  const oldHome = path.join(dir, name);
   await fs.mkdir(oldHome);
   const { DatabaseSync } = await import("node:sqlite");
   const db = new DatabaseSync(path.join(oldHome, "mdview.sqlite3"));
-  const content = "Old text.\n";
   db.exec(`
     CREATE TABLE docs (id INTEGER PRIMARY KEY, path TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL);
     CREATE TABLE versions (id INTEGER PRIMARY KEY, doc_id INTEGER NOT NULL, seq INTEGER NOT NULL, sha256 TEXT NOT NULL,
@@ -420,22 +449,60 @@ test("a store from before batches gains the pending column and keeps every messa
       block_ordinal INTEGER NOT NULL, quote TEXT NOT NULL, start INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'open',
       status_by TEXT, status_at TEXT, created_at TEXT NOT NULL);
     CREATE TABLE messages (id INTEGER PRIMARY KEY, thread_id INTEGER NOT NULL, author TEXT NOT NULL, author_kind TEXT NOT NULL,
-      body TEXT NOT NULL, version_id INTEGER NOT NULL, session TEXT, created_at TEXT NOT NULL);
-    PRAGMA user_version = 1;
+      body TEXT NOT NULL, version_id INTEGER NOT NULL, session TEXT, created_at TEXT NOT NULL
+      ${pendingColumn ? ", pending INTEGER NOT NULL DEFAULT 0" : ""});
+    PRAGMA user_version = ${version};
   `);
-  const at = new Date().toISOString();
+  const at = "2026-10-20T12:00:00.000Z";
   db.prepare("INSERT INTO docs VALUES (1, '/nowhere/old.md', ?)").run(at);
   db.prepare("INSERT INTO versions VALUES (1, 1, 1, ?, ?, ?)").run(sha256(content), content, at);
   db.prepare("INSERT INTO threads VALUES (1, 1, 1, ?, 0, '', 0, 'open', NULL, NULL, ?)").run(parseBlocks(content)[0].sha, at);
-  db.prepare("INSERT INTO messages VALUES (1, 1, 'adam', 'human', 'an old comment', 1, NULL, ?)").run(at);
+  messages.forEach(([body, kind, pending], i) => {
+    const columns = pendingColumn ? "(id, thread_id, author, author_kind, body, version_id, created_at, pending)" : "(id, thread_id, author, author_kind, body, version_id, created_at)";
+    const values = [i + 1, 1, kind === "human" ? "adam" : "agent", kind, body, 1, `2026-10-20T12:00:0${i}.000Z`];
+    if (pendingColumn) values.push(pending ? 1 : 0);
+    db.prepare(`INSERT INTO messages ${columns} VALUES (${values.map(() => "?").join(", ")})`).run(...values);
+  });
   db.close();
+  return oldHome;
+}
+
+test("a store from before batches upgrades with every message sent at the time it was written", async () => {
+  const oldHome = await oldStore("v1-home", { pendingColumn: false, version: 1, messages: [["an old comment", "human"]] });
 
   const migrated = await openStore(oldHome);
   const { thread } = migrated.thread(1);
   const pendingCount = migrated.pendingCount();
   migrated.close();
 
-  assert.deepEqual([thread.messages.map((m) => m.body), thread.waitingOn, pendingCount], [["an old comment"], "agent", 0]);
+  assert.deepEqual([thread.messages.map((m) => [m.body, m.sentAt]), thread.waitingOn, pendingCount], [[["an old comment", "2026-10-20T12:00:00.000Z"]], "agent", 0]);
+});
+
+test("a version 2 store keeps its batch pending, drops the pending column, and is backed up first", async () => {
+  const oldHome = await oldStore("v2-home", {
+    pendingColumn: true,
+    version: 2,
+    messages: [["the comment", "human", false], ["an answer", "agent", false], ["a drafted reply", "human", true]],
+  });
+
+  const migrated = await openStore(oldHome);
+  const thread = migrated.thread(1, { includePending: true }).thread;
+  const pendingCount = migrated.pendingCount();
+  migrated.close();
+  const { DatabaseSync } = await import("node:sqlite");
+  const db = new DatabaseSync(path.join(oldHome, "mdview.sqlite3"), { readOnly: true });
+  const columns = db.prepare("SELECT name FROM pragma_table_info('messages')").all().map((c) => c.name);
+  const version = db.prepare("PRAGMA user_version").get().user_version;
+  db.close();
+  const backups = await fs.readdir(path.join(oldHome, "backups"));
+
+  assert.deepEqual(thread.messages.map((m) => [m.body, m.pending]), [["the comment", false], ["an answer", false], ["a drafted reply", true]]);
+  assert.equal(thread.waitingOn, "human");
+  assert.equal(pendingCount, 1);
+  assert.ok(columns.includes("sent_at") && !columns.includes("pending"), columns.join(", "));
+  assert.equal(version, 3);
+  assert.equal(backups.length, 1);
+  assert.match(backups[0], /^mdview-before-v3-.*\.sqlite3$/);
 });
 
 test("messages record the version that was latest when they were written", async () => {

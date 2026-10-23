@@ -30,7 +30,7 @@ function threadChips(t) {
 
 /** One message. Its delete button shows on open cards; on the first message it deletes the whole thread. */
 function messageItem(m, first) {
-  const time = Date.parse(m.createdAt);
+  const time = Date.parse(m.sentAt ?? m.createdAt);
   const badge =
     (m.authorKind === "agent" ? '<span class="badge">agent</span>' : "") +
     (m.pending ? '<span class="badge badge-pending" title="In your batch. Agents see it after you send.">pending</span>' : "");
