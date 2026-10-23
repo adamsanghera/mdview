@@ -30,10 +30,11 @@ export async function until(check, { timeout = WAIT_MS, what = "condition" } = {
 /** Starts a headless Chrome with a throwaway profile. */
 export async function launchChrome() {
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), "mdview-chrome-"));
+  // Its own process group, so close() can stop Chrome's helper processes along with it.
   const proc = spawn(
     CHROME,
     ["--headless=new", "--remote-debugging-port=0", `--user-data-dir=${profile}`, "--no-first-run", "--no-default-browser-check", "about:blank"],
-    { stdio: "ignore" },
+    { stdio: "ignore", detached: true },
   );
   // Chrome writes the port it picked to DevToolsActivePort in the profile.
   const readPort = () => {
@@ -44,7 +45,7 @@ export async function launchChrome() {
     }
   };
   const port = await until(readPort, { what: "Chrome to start" }).catch((err) => {
-    proc.kill();
+    process.kill(-proc.pid, "SIGTERM");
     throw err;
   });
   const endpoint = `http://127.0.0.1:${port}`;
@@ -58,10 +59,14 @@ export async function launchChrome() {
       return page;
     },
     async close() {
-      proc.kill();
-      await new Promise((resolve) => proc.once("exit", resolve));
-      // Chrome's helper processes can still be writing to the profile for a moment after it exits.
-      fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      const exited = new Promise((resolve) => proc.once("exit", resolve));
+      process.kill(-proc.pid, "SIGTERM");
+      await exited;
+      try {
+        fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      } catch {
+        // A leftover temp profile is harmless, and not what any test is about.
+      }
     },
   };
 }
