@@ -8,16 +8,7 @@
   <link rel="stylesheet" href="/static/style.css">
   <link rel="stylesheet" href="/static/hljs/github.css" id="hljs-light">
   <link rel="stylesheet" href="/static/hljs/github-dark.css" id="hljs-dark">
-  <script>
-    (function () {
-      var pref = localStorage.getItem("mdview.theme") || "auto";
-      var dark = pref === "dark" || (pref === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
-      document.documentElement.dataset.theme = dark ? "dark" : "light";
-      document.getElementById("hljs-light").disabled = dark;
-      document.getElementById("hljs-dark").disabled = !dark;
-      if (localStorage.getItem("mdview.sidebar") === "hidden") document.documentElement.classList.add("no-sidebar");
-    })();
-  </script>
+  <script src="/static/js/boot.js"></script>
 </head>
 <body>
   <div class="progress" id="progress"></div>

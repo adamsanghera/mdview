@@ -124,6 +124,29 @@ test("files outside the root are refused", async () => {
   ].forEach((res) => assert.equal(res.status, 403));
 });
 
+test("the viewer page may run scripts only from /static/js/", async () => {
+  const res = await get("/view/notes/plan.md");
+  const policy = res.headers["content-security-policy"];
+
+  assert.match(policy, new RegExp(`script-src http://127\\.0\\.0\\.1:${port}/static/js/(;|$)`));
+  assert.match(policy, /object-src 'none'/);
+  assert.match(policy, /frame-ancestors 'none'/);
+  assert.doesNotMatch(policy, /unsafe-eval|script-src[^;]*'unsafe-inline'/);
+});
+
+test("files from the root open sandboxed, except PDFs", async () => {
+  await fs.writeFile(path.join(dir, "notes", "page.html"), "<script>parent.postMessage('hi', '*')</script>");
+  await fs.writeFile(path.join(dir, "notes", "paper.pdf"), "%PDF-1.4");
+  const html = await get("/raw/notes/page.html");
+  const md = await get("/raw/notes/plan.md");
+  const pdf = await get("/raw/notes/paper.pdf");
+
+  for (const res of [html, md, pdf]) assert.equal(res.headers["x-content-type-options"], "nosniff");
+  assert.equal(html.headers["content-security-policy"], "sandbox");
+  assert.equal(md.headers["content-security-policy"], "sandbox");
+  assert.equal(pdf.headers["content-security-policy"], undefined);
+});
+
 test("requests that name another host are refused", async () => {
   const res = await get("/api/tree", `evil.example:${port}`);
 
