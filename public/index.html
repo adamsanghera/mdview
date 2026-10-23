@@ -11,10 +11,15 @@
   <script src="/static/js/boot.js"></script>
 </head>
 <body>
+  <svg hidden aria-hidden="true">
+    <symbol id="i-copy" viewBox="0 0 16 16"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5"/></symbol>
+    <symbol id="i-comment" viewBox="0 0 16 16"><path d="M3.5 2.5h9A1.5 1.5 0 0 1 14 4v5.5a1.5 1.5 0 0 1-1.5 1.5H8.5l-3 2.5V11h-2A1.5 1.5 0 0 1 2 9.5V4a1.5 1.5 0 0 1 1.5-1.5z"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4"/></symbol>
+  </svg>
   <div class="progress" id="progress"></div>
   <header class="topbar">
     <button class="icon-btn" id="toggle-sidebar" title="Toggle the file list (\)" aria-label="Toggle the file list">
-      <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M6 2.5v11"/></svg>
+      <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M6 2.5v11"/></svg>
     </button>
     <button class="crumbs" id="crumbs" type="button"></button>
     <div class="meta" id="meta"></div>
@@ -26,20 +31,20 @@
     </span>
     <div class="actions">
       <button class="icon-btn comments-btn" id="comments-btn" title="Comments" aria-label="Comments" hidden>
-        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 2.5h9A1.5 1.5 0 0 1 14 4v5.5a1.5 1.5 0 0 1-1.5 1.5H8.5l-3 2.5V11h-2A1.5 1.5 0 0 1 2 9.5V4a1.5 1.5 0 0 1 1.5-1.5z"/></svg>
+        <svg class="icon" aria-hidden="true"><use href="#i-comment"/></svg>
         <span class="count" id="comments-count"></span>
       </button>
       <span class="live" id="live" title="Live reload: waiting"></span>
       <button class="icon-btn" id="copy-md" title="Copy this file's Markdown" aria-label="Copy Markdown">
-        <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5"/></svg>
+        <svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>
       </button>
       <a class="icon-btn" id="open-editor" title="Open in Cursor" aria-label="Open in Cursor">
-        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9 2.5h4.5V7"/><path d="M13.5 2.5 7.5 8.5"/><path d="M12 9.5v3a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 2 12.5v-7A1.5 1.5 0 0 1 3.5 4h3"/></svg>
+        <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M9 2.5h4.5V7"/><path d="M13.5 2.5 7.5 8.5"/><path d="M12 9.5v3a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 2 12.5v-7A1.5 1.5 0 0 1 3.5 4h3"/></svg>
       </a>
       <button class="icon-btn" id="theme" title="Theme" aria-label="Change theme">
-        <svg class="i-auto" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5v11a5.5 5.5 0 0 0 0-11z" class="fill"/></svg>
-        <svg class="i-light" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3 3l1 1M12 12l1 1M3 13l1-1M12 4l1-1"/></svg>
-        <svg class="i-dark" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.5A5.5 5.5 0 0 1 6.5 2.5a5.5 5.5 0 1 0 7 7z"/></svg>
+        <svg class="icon i-auto" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5v11a5.5 5.5 0 0 0 0-11z" class="fill"/></svg>
+        <svg class="icon i-light" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3 3l1 1M12 12l1 1M3 13l1-1M12 4l1-1"/></svg>
+        <svg class="icon i-dark" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.5A5.5 5.5 0 0 1 6.5 2.5a5.5 5.5 0 1 0 7 7z"/></svg>
       </button>
     </div>
   </header>
@@ -61,7 +66,7 @@
     </aside>
   </div>
   <button class="comment-btn" id="comment-btn" type="button" title="Comment on the selection (⌘⇧M)" hidden>
-    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 2.5h9A1.5 1.5 0 0 1 14 4v5.5a1.5 1.5 0 0 1-1.5 1.5H8.5l-3 2.5V11h-2A1.5 1.5 0 0 1 2 9.5V4a1.5 1.5 0 0 1 1.5-1.5z"/></svg>
+    <svg class="icon" aria-hidden="true"><use href="#i-comment"/></svg>
     Comment
   </button>
   <div class="composer" id="composer" role="dialog" aria-label="New comment" hidden>

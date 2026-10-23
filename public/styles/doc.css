@@ -51,7 +51,7 @@
 
 .doc code {
   padding: 0.14em 0.38em;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   background: var(--code-bg);
   font-family: var(--mono);
   font-size: 0.86em;
@@ -62,7 +62,7 @@
   padding: 14px 16px;
   overflow-x: auto;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: var(--code-bg);
   font-size: 13.5px;
   line-height: 1.55;
@@ -75,7 +75,7 @@
   top: 6px;
   right: 10px;
   color: var(--text-faint);
-  font: 11px var(--mono);
+  font: var(--text-xs) var(--mono);
   transition: opacity 120ms;
 }
 .doc pre.code:hover::before { opacity: 0; }
@@ -85,11 +85,10 @@
   right: 6px;
   padding: 2px 8px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--bg);
   color: var(--text-soft);
-  font: 12px var(--font);
-  cursor: pointer;
+  font: var(--text-sm) var(--font);
   opacity: 0;
   transition: opacity 120ms;
 }
@@ -107,7 +106,7 @@
 .doc img {
   max-width: 100%;
   height: auto;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   cursor: zoom-in;
 }
 
@@ -118,12 +117,12 @@
 
 .frontmatter {
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: var(--bg-soft);
-  font-size: 13px;
+  font-size: var(--text-md);
 }
 .frontmatter summary { padding: 8px 12px; color: var(--text-soft); cursor: pointer; }
-.frontmatter pre { margin: 0; padding: 0 12px 12px; white-space: pre-wrap; font: 12.5px/1.55 var(--mono); }
+.frontmatter pre { margin: 0; padding: 0 12px 12px; white-space: pre-wrap; font: var(--text-sm)/1.55 var(--mono); }
 
 .doc-error { color: var(--text-soft); }
 .doc-error code { color: var(--text); }

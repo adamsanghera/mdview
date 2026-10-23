@@ -6,7 +6,7 @@ import { buildTree } from "./lib/tree.js";
 import { state } from "./state.js";
 
 export const NARROW = matchMedia("(max-width: 820px)");
-const CHEVRON = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4l4 4-4 4"/></svg>';
+const CHEVRON = '<svg class="icon" aria-hidden="true"><use href="#i-chevron"/></svg>';
 
 /** Set by main.js: `resized` runs after showing or hiding the list changes the page's layout. */
 export const sidebarHooks = { resized() {} };

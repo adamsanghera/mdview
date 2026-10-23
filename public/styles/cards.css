@@ -1,14 +1,14 @@
-.now-reads { margin: 0 0 8px; font-size: 12.5px; color: var(--text-soft); overflow-wrap: anywhere; }
+.now-reads { margin: 0 0 8px; font-size: var(--text-sm); color: var(--text-soft); overflow-wrap: anywhere; }
 .now-reads strong { font-weight: 600; color: var(--text); }
 
 .thread {
   padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: var(--bg);
-  font-size: 13.5px;
+  font-size: var(--text-md);
   line-height: 1.5;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  box-shadow: var(--shadow-sm);
   cursor: pointer;
   transition: box-shadow 120ms, border-color 120ms;
 }
@@ -16,35 +16,35 @@
 .thread.expanded {
   z-index: 2;
   border-color: var(--border-strong);
-  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.14);
+  box-shadow: var(--shadow-md);
   cursor: default;
 }
-.thread[data-status="suggested"] { border-left: 3px solid var(--suggested); }
+.thread[data-status="suggested"] { border-left: 3px solid var(--state-suggested); }
 .thread[data-pending="true"] { border-style: dashed; }
 .thread[data-status="resolved"] { opacity: 0.75; }
 
-.thread-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 6px; font-size: 12px; color: var(--text-faint); }
+.thread-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 6px; font-size: var(--text-sm); color: var(--text-faint); }
 .thread-id { font-variant-numeric: tabular-nums; }
 
 .chip {
   padding: 0 7px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--bg-soft);
-  font-size: 11px;
+  font-size: var(--text-xs);
   line-height: 18px;
   color: var(--text-soft);
   white-space: nowrap;
 }
-.chip-suggested { color: var(--suggested); border-color: color-mix(in srgb, var(--suggested) 45%, transparent); }
+.chip-suggested { color: var(--state-suggested); border-color: color-mix(in srgb, var(--state-suggested) 45%, transparent); }
 .chip-pending { border-style: dashed; color: var(--text-soft); }
-.chip-outdated { color: var(--outdated); border-color: color-mix(in srgb, var(--outdated) 45%, transparent); }
+.chip-outdated { color: var(--state-outdated); border-color: color-mix(in srgb, var(--state-outdated) 45%, transparent); }
 
 .thread-quote {
   margin: 0 0 8px;
   padding-left: 8px;
-  border-left: 2px solid var(--quote-bar);
-  font-size: 12.5px;
+  border-left: 2px solid var(--state-open);
+  font-size: var(--text-sm);
   color: var(--text-soft);
   overflow-wrap: anywhere;
   display: -webkit-box;
@@ -55,14 +55,14 @@
 
 /* minmax(0, 1fr) lets the column shrink below a code block's longest line, which then scrolls inside the card. */
 .messages { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin: 0; padding: 0; list-style: none; }
-.message-meta { display: flex; align-items: baseline; gap: 6px; font-size: 12px; color: var(--text-faint); }
+.message-meta { display: flex; align-items: baseline; gap: 6px; font-size: var(--text-sm); color: var(--text-faint); }
 .message-meta .author { font-weight: 600; color: var(--text); }
 .message-meta .when { margin-left: auto; white-space: nowrap; }
 .badge {
   padding: 0 5px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: var(--accent-soft);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -74,8 +74,8 @@
 .message-body > :last-child { margin-bottom: 0; }
 .message-body p, .message-body ul, .message-body ol { margin: 4px 0; }
 .message-body ul, .message-body ol { padding-left: 1.3em; }
-.message-body code { font-family: var(--mono); font-size: 0.9em; padding: 0.1em 0.3em; border-radius: 4px; background: var(--code-bg); }
-.message-body pre { overflow-x: auto; padding: 6px 8px; border-radius: 6px; background: var(--code-bg); font-size: 12px; }
+.message-body code { font-family: var(--mono); font-size: 0.9em; padding: 0.1em 0.3em; border-radius: var(--radius-xs); background: var(--code-bg); }
+.message-body pre { overflow-x: auto; padding: 6px 8px; border-radius: var(--radius-sm); background: var(--code-bg); font-size: var(--text-sm); }
 .message-body pre code { padding: 0; background: none; }
 .thread:not(.expanded) .message-body {
   display: -webkit-box;
@@ -83,18 +83,14 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.message.more { font-size: 12px; color: var(--text-faint); }
+.message.more { font-size: var(--text-sm); color: var(--text-faint); }
 .message-delete {
   display: none;
   padding: 0 5px;
-  border: 0;
-  border-radius: 4px;
-  background: none;
-  font: inherit;
-  font-size: 14px;
+  border-radius: var(--radius-xs);
+  font-size: var(--text-lg);
   line-height: 1.2;
   color: var(--text-faint);
-  cursor: pointer;
 }
 .thread.expanded .message:hover .message-delete { display: inline-block; }
 .message-delete:hover { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }

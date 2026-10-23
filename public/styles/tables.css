@@ -3,17 +3,18 @@
 .doc table {
   width: 100%;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   border-collapse: separate;
   border-spacing: 0;
   font-size: 0.9em;
   line-height: 1.5;
   font-variant-numeric: tabular-nums;
 }
-.doc tr:first-child > th:first-child { border-top-left-radius: 9px; }
-.doc tr:first-child > th:last-child { border-top-right-radius: 9px; }
-.doc tbody tr:last-child > td:first-child { border-bottom-left-radius: 9px; }
-.doc tbody tr:last-child > td:last-child { border-bottom-right-radius: 9px; }
+/* A corner cell's radius is the table's, less its border, so its background meets the frame. */
+.doc tr:first-child > th:first-child { border-top-left-radius: calc(var(--radius-lg) - 1px); }
+.doc tr:first-child > th:last-child { border-top-right-radius: calc(var(--radius-lg) - 1px); }
+.doc tbody tr:last-child > td:first-child { border-bottom-left-radius: calc(var(--radius-lg) - 1px); }
+.doc tbody tr:last-child > td:last-child { border-bottom-right-radius: calc(var(--radius-lg) - 1px); }
 .doc th {
   background: var(--bg-soft);
   font-weight: 600;

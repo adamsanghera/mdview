@@ -72,9 +72,10 @@ export function renderTocMarks() {
   layer.className = "toc-marks";
   layer.innerHTML = marks
     .map(({ id, thread, top }) => {
-      const kind = id === comments.active ? "active" : thread.pending ? "pending" : thread.status;
+      const kind = thread.pending ? "pending" : thread.status;
+      const active = id === comments.active ? " data-active" : "";
       const preview = truncate(thread.messages[0].body.replace(/\s+/g, " "), MARK_PREVIEW_CHARS);
-      return `<button class="toc-mark" type="button" tabindex="-1" data-thread="${id}" data-kind="${kind}" style="top: ${top.toFixed(1)}px" title="#${id}: ${escapeHtml(preview)}"></button>`;
+      return `<button class="toc-mark" type="button" tabindex="-1" data-thread="${id}" data-kind="${kind}"${active} style="top: ${top.toFixed(1)}px" title="#${id}: ${escapeHtml(preview)}"></button>`;
     })
     .join("");
   toc.append(layer);

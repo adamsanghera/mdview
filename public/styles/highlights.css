@@ -1,4 +1,4 @@
-/* Highlight pseudo-elements do not reliably read custom properties, so the colors are spelled out per theme. */
+/* Highlight pseudo-elements do not reliably read custom properties, so the colors are spelled out per theme: keep them in step with the --state-* tokens. */
 ::highlight(mdview-comment-open) { background-color: rgba(250, 204, 21, 0.3); }
 ::highlight(mdview-comment-suggested) { background-color: rgba(45, 164, 78, 0.2); }
 ::highlight(mdview-comment-active),

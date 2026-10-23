@@ -28,7 +28,7 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
-  font-size: 13px;
+  font-size: var(--text-md);
   color: var(--text-faint);
   white-space: nowrap;
   overflow: hidden;
@@ -39,31 +39,21 @@
 button.crumbs {
   margin-left: -6px;
   padding: 5px 6px;
-  border: 0;
-  border-radius: 8px;
-  background: none;
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
+  border-radius: var(--radius-md);
 }
 button.crumbs:hover { background: var(--hover); }
-.crumbs .copy-icon {
-  flex: none;
+.crumbs .icon {
   width: 13px;
   height: 13px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.4;
-  stroke-linejoin: round;
   opacity: 0;
   transition: opacity 120ms;
 }
-button.crumbs:hover .copy-icon,
-button.crumbs:focus-visible .copy-icon { opacity: 1; }
+button.crumbs:hover .icon,
+button.crumbs:focus-visible .icon { opacity: 1; }
 
 .meta {
   margin-left: auto;
-  font-size: 12.5px;
+  font-size: var(--text-sm);
   color: var(--text-faint);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
@@ -76,24 +66,10 @@ button.crumbs:focus-visible .copy-icon { opacity: 1; }
   place-items: center;
   width: 32px;
   height: 32px;
-  padding: 0;
-  border: 0;
-  border-radius: 8px;
-  background: none;
+  border-radius: var(--radius-md);
   color: var(--text-soft);
-  cursor: pointer;
 }
 .icon-btn:hover { background: var(--hover); color: var(--text); }
-.icon-btn svg {
-  width: 16px;
-  height: 16px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.icon-btn svg .fill { fill: currentColor; stroke: none; }
 #theme svg { display: none; }
 #theme[data-pref="auto"] .i-auto,
 #theme[data-pref="light"] .i-light,
@@ -107,11 +83,11 @@ button.crumbs:focus-visible .copy-icon { opacity: 1; }
   background: var(--border-strong);
   transition: background 200ms;
 }
-.live.on { background: var(--live); }
-.live.held { background: var(--outdated); }
+.live.on { background: var(--success); }
+.live.held { background: var(--warning); }
 .live.flash { animation: pulse 900ms ease-out; }
 @keyframes pulse {
-  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--live) 70%, transparent); }
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 70%, transparent); }
   100% { box-shadow: 0 0 0 10px transparent; }
 }
 
@@ -123,10 +99,10 @@ button.crumbs:focus-visible .copy-icon { opacity: 1; }
   bottom: 24px;
   z-index: 40;
   padding: 8px 14px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--text);
   color: var(--bg);
-  font-size: 13px;
+  font-size: var(--text-md);
   opacity: 0;
   pointer-events: none;
   transform: translate(-50%, 8px);

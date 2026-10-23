@@ -14,3 +14,10 @@ body {
 }
 
 ::selection { background: var(--accent-soft); }
+
+/* Buttons start bare, so each control styles only what it adds. */
+button { padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+
+/* Line icons, inline or from the sprite in index.html, drawn in the text color. */
+.icon { flex: none; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.icon .fill { fill: currentColor; stroke: none; }

@@ -7,8 +7,7 @@ import { expandAncestors, refreshTree, renderTree, revealActiveFile } from "./si
 import { state } from "./state.js";
 import { layoutTables } from "./tables.js";
 
-const COPY_ICON =
-  '<svg class="copy-icon" viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5"/></svg>';
+const COPY_ICON = '<svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>';
 
 const LIVE_ON = "Live reload: on. The page updates when the file changes.";
 

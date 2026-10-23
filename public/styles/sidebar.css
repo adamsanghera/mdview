@@ -4,10 +4,10 @@
   height: 32px;
   padding: 0 30px 0 10px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--bg);
   color: var(--text);
-  font: 13px var(--font);
+  font: var(--text-md) var(--font);
   outline: none;
 }
 #filter:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
@@ -16,10 +16,10 @@
   position: absolute;
   right: 8px;
   top: 7px;
-  font: 11px var(--mono);
+  font: var(--text-xs) var(--mono);
   color: var(--text-faint);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   padding: 0 5px;
   line-height: 16px;
 }
@@ -35,32 +35,26 @@
   width: 100%;
   margin-top: 2px;
   padding: 5px 8px 5px 4px;
-  border: 0;
-  border-radius: 6px;
-  background: none;
+  border-radius: var(--radius-sm);
   color: var(--text-soft);
-  font: 600 12.5px var(--font);
+  font: 600 var(--text-sm) var(--font);
   text-align: left;
-  cursor: pointer;
 }
 .dir-label:hover { background: var(--hover); color: var(--text); }
-.dir-label svg {
-  flex: 0 0 auto;
+.dir-label .icon {
   width: 14px;
   height: 14px;
-  fill: none;
-  stroke: currentColor;
   stroke-width: 1.6;
   transition: transform 120ms ease;
 }
-.dir-label[aria-expanded="true"] svg { transform: rotate(90deg); }
+.dir-label[aria-expanded="true"] .icon { transform: rotate(90deg); }
 
 .file {
   display: block;
   padding: 4px 8px 4px 22px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   color: var(--text);
-  font-size: 13.5px;
+  font-size: var(--text-md);
   line-height: 1.45;
   text-decoration: none;
   white-space: nowrap;
@@ -69,4 +63,4 @@
 }
 .file:hover { background: var(--hover); }
 .file.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
-.tree-empty { padding: 8px 10px; color: var(--text-faint); font-size: 13px; }
+.tree-empty { padding: 8px 10px; color: var(--text-faint); font-size: var(--text-md); }
