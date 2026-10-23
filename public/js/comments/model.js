@@ -19,6 +19,10 @@ export async function loadComments() {
     return; // The server may be restarting. The next live-reload event retries.
   }
   if (state.doc !== doc) return;
+  // A write to the store on any doc reloads every tab's comments; when nothing here changed, redrawing would only disturb a reply being typed.
+  const loaded = JSON.stringify(data);
+  if (loaded === comments.loaded) return;
+  comments.loaded = loaded;
   comments.threads = data.threads;
   comments.version = data.version;
   comments.pendingCount = data.pendingCount ?? 0;
@@ -33,16 +37,18 @@ export function resetComments() {
   closeComposer({ release: false });
   comments.threads = [];
   comments.version = null;
+  comments.loaded = null;
   comments.active = null;
   comments.replyText.clear();
   root.classList.remove("drawer-open");
   renderComments();
 }
 
-/** Drops highlights that point into a document that was just replaced. */
+/** Drops highlights that point into a document that was just replaced, so the next load draws them again. */
 export function forgetRanges() {
   state.comments.ranges = new Map();
   state.comments.nowRanges = new Map();
+  state.comments.loaded = null;
   paintMarks();
 }
 

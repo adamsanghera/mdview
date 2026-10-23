@@ -41,6 +41,8 @@ export function renderRail() {
   const docked = root.classList.contains("rail-docked");
   const listing = comments.listMode || !docked;
   const focused = document.activeElement?.closest?.("#rail .thread")?.dataset.thread;
+  const typing = document.activeElement?.matches?.("#rail textarea.reply") ? document.activeElement : null;
+  const caret = typing && [typing.selectionStart, typing.selectionEnd, typing.selectionDirection];
   rail.classList.toggle("listing", listing);
   rail.style.minHeight = "";
   const body = listing
@@ -57,7 +59,7 @@ export function renderRail() {
   const refocus = focused && rail.querySelector(`.thread[data-thread="${focused}"] textarea`);
   if (refocus) {
     refocus.focus({ preventScroll: true });
-    refocus.setSelectionRange(refocus.value.length, refocus.value.length);
+    refocus.setSelectionRange(...(caret ?? [refocus.value.length, refocus.value.length]));
   }
   if (!listing) layoutRail();
 }

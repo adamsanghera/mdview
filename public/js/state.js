@@ -20,6 +20,7 @@ export const state = {
     enabled: false,
     threads: [],
     version: null,
+    loaded: null,
     ranges: new Map(),
     nowRanges: new Map(),
     activateAfterLoad: null,
