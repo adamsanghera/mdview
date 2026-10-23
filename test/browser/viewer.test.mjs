@@ -1,7 +1,7 @@
-import { test, before, after } from "node:test";
+import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { chromeMissing, launchChrome } from "../helpers/browser.mjs";
+import { chromeMissing, sharedChrome } from "../helpers/browser.mjs";
 import { AGENT, HUMAN, startViewer } from "../helpers/viewer.mjs";
 import { click, comment, highlighted } from "../helpers/viewer-page.mjs";
 
@@ -32,23 +32,14 @@ ${table(wideCells, [wideCells.map((c) => `\`${c}_value\``)])}
 The end.
 `;
 
-let chrome;
-const open = [];
-
-before(async () => {
-  if (!chromeMissing) chrome = await launchChrome();
-});
-
-after(async () => {
-  await chrome?.close();
-});
+const chrome = sharedChrome();
 
 /** A viewer on plan.md and a tab on it. Both close after the test. */
 async function setup(t, { files = { "plan.md": PLAN }, width, height, before: prepare } = {}) {
   const viewer = await startViewer({ files, initial: "plan.md" });
   t.after(() => viewer.close());
   await prepare?.(viewer);
-  const page = await chrome.open(viewer.url, { width, height });
+  const page = await (await chrome()).open(viewer.url, { width, height });
   t.after(() => page.close());
   t.after(() => assert.deepEqual(page.errors, [], "the page threw"));
   await page.waitFor(() => document.querySelector("#doc h1")?.textContent.includes("Plan"), { what: "the doc to render" });

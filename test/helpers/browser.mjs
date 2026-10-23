@@ -7,6 +7,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { after } from "node:test";
 
 const CHROME = process.env.MDVIEW_CHROME || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const WAIT_MS = 5000;
@@ -25,6 +26,19 @@ export async function until(check, { timeout = WAIT_MS, what = "condition" } = {
     if (Date.now() > deadline) throw new Error(`Timed out waiting for ${what}`);
     await sleep(POLL_MS);
   }
+}
+
+/**
+ * For a test file's top level: returns a function that launches one Chrome on
+ * first use and shares it, closed after the file's tests. A file whose tests
+ * are all filtered out never launches one, and so never waits on it.
+ */
+export function sharedChrome() {
+  let launching;
+  after(async () => {
+    if (launching) await (await launching).close();
+  });
+  return () => (launching ??= launchChrome());
 }
 
 /** Starts a headless Chrome with a throwaway profile. */

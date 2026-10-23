@@ -1,6 +1,6 @@
-import { test, before, after } from "node:test";
+import { test } from "node:test";
 import assert from "node:assert/strict";
-import { chromeMissing, launchChrome } from "../helpers/browser.mjs";
+import { chromeMissing, sharedChrome } from "../helpers/browser.mjs";
 import { startViewer } from "../helpers/viewer.mjs";
 import { click } from "../helpers/viewer-page.mjs";
 
@@ -13,20 +13,12 @@ const UNTRUSTED = `# Untrusted
 The rest of the doc.
 `;
 
-let chrome;
-
-before(async () => {
-  if (!chromeMissing) chrome = await launchChrome();
-});
-
-after(async () => {
-  await chrome?.close();
-});
+const chrome = sharedChrome();
 
 test("a doc's raw HTML cannot run scripts in the viewer", { skip: chromeMissing }, async (t) => {
   const viewer = await startViewer({ files: { "untrusted.md": UNTRUSTED }, initial: "untrusted.md", port: 47450 });
   t.after(() => viewer.close());
-  const page = await chrome.open(viewer.url);
+  const page = await (await chrome()).open(viewer.url);
   t.after(() => page.close());
 
   await page.waitFor(() => document.querySelector("#bait")?.complete, { what: "the image to fail" });
