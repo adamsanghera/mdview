@@ -20,6 +20,7 @@
   cursor: default;
 }
 .thread[data-status="suggested"] { border-left: 3px solid var(--state-suggested); }
+.thread[data-status="open"][data-turn="human"] { border-left: 3px solid var(--state-turn); }
 .thread[data-pending="true"] { border-style: dashed; }
 .thread[data-status="resolved"] { opacity: 0.75; }
 
@@ -38,6 +39,7 @@
 }
 .chip-suggested { color: var(--state-suggested); border-color: color-mix(in srgb, var(--state-suggested) 45%, transparent); }
 .chip-pending { border-style: dashed; color: var(--text-soft); }
+.chip-turn { color: var(--state-turn); border-color: color-mix(in srgb, var(--state-turn) 45%, transparent); }
 .chip-outdated { color: var(--state-outdated); border-color: color-mix(in srgb, var(--state-outdated) 45%, transparent); }
 
 .thread-quote {

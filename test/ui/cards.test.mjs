@@ -75,6 +75,18 @@ test("an outdated card links to the version it was made on", () => {
   assert.match(threadCard(t, { docPath: "notes/plan.md" }), /href="\/view\/notes\/plan.md\?v=3"/);
 });
 
+test("an open thread the agent answered says it is the human's turn", () => {
+  assert.match(threadCard(thread({ waitingOn: "human" }), { docPath: "plan.md" }), /class="chip chip-turn"[^>]*>Your turn</);
+  assert.match(threadCard(thread({ waitingOn: "human" }), { docPath: "plan.md" }), /data-turn="human"/);
+  assert.doesNotMatch(threadCard(thread({ waitingOn: "agent" }), { docPath: "plan.md" }), /Your turn/);
+  assert.doesNotMatch(threadCard(thread({ status: "suggested", waitingOn: "human" }), { docPath: "plan.md" }), /Your turn/);
+});
+
+test("an agent's message names its session", () => {
+  const t = thread({ messages: [message(), message({ authorKind: "agent", author: "agent", session: "chat-<1>" })] });
+  assert.match(threadCard(t, { docPath: "plan.md" }), /<span class="badge" title="Session chat-&lt;1&gt;">agent<\/span>/);
+});
+
 test("the header counts unresolved threads and those on older versions", () => {
   const threads = [thread(), thread({ state: "outdated" }), thread({ status: "resolved" })];
   const html = railHead(threads, { listing: false, docked: true });

@@ -18,6 +18,7 @@ function threadChips(t) {
   const chips = [];
   if (t.pending) chips.push('<span class="chip chip-pending" title="In your batch. Agents see it after you send.">Pending</span>');
   if (t.status === "suggested") chips.push('<span class="chip chip-suggested">Agent suggests resolving</span>');
+  if (t.status === "open" && t.waitingOn === "human") chips.push('<span class="chip chip-turn" title="The agent answered. This waits on you.">Your turn</span>');
   if (t.status === "resolved") chips.push('<span class="chip">Resolved</span>');
   if (t.state === "carried") {
     chips.push(`<span class="chip" title="Made on v${t.madeOn.seq}. Its text has not changed since.">from v${t.madeOn.seq}</span>`);
@@ -31,8 +32,9 @@ function threadChips(t) {
 /** One message. Its delete button shows on open cards; on the first message it deletes the whole thread. */
 function messageItem(m, first) {
   const time = Date.parse(m.sentAt ?? m.createdAt);
+  const session = m.session ? ` title="Session ${escapeHtml(m.session)}"` : "";
   const badge =
-    (m.authorKind === "agent" ? '<span class="badge">agent</span>' : "") +
+    (m.authorKind === "agent" ? `<span class="badge"${session}>agent</span>` : "") +
     (m.pending ? '<span class="badge badge-pending" title="In your batch. Agents see it after you send.">pending</span>' : "");
   const remove = first
     ? '<button class="message-delete" type="button" data-action="delete-thread" title="Delete this thread permanently">×</button>'
@@ -74,7 +76,7 @@ export function threadCard(t, { expanded = false, batching = false, docPath }) {
   const hidden = t.messages.length - shown.length;
   if (hidden) items.splice(1, 0, `<li class="message more">${hidden} more</li>`);
   const quote = t.quote ? `<blockquote class="thread-quote">${escapeHtml(t.quote)}</blockquote>` : "";
-  return `<section class="thread${expanded ? " expanded" : ""}" data-thread="${t.id}" data-status="${t.status}" data-pending="${t.pending}">
+  return `<section class="thread${expanded ? " expanded" : ""}" data-thread="${t.id}" data-status="${t.status}" data-pending="${t.pending}" data-turn="${t.waitingOn ?? ""}">
     <header class="thread-head"><span class="thread-id">#${t.id}</span>${threadChips(t)}</header>
     ${quote}
     ${nowReads(t, docPath)}
