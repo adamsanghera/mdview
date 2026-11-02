@@ -11,12 +11,12 @@ A local Markdown reader. Point it at a file or a folder, and it opens a browser 
 ## Setup
 
 ```bash
-cd ~/code/mdview
+cd ~/mono/mdview
 npm install
 npm link   # optional: puts `mdview` on your PATH
 ```
 
-Without `npm link`, run `node ~/code/mdview/bin/mdview.mjs` in place of `mdview`.
+Without `npm link`, run `node ~/mono/mdview/bin/mdview.mjs` in place of `mdview`.
 
 ## Use
 

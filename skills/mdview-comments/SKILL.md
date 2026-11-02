@@ -8,8 +8,7 @@ description: Read and answer comments a human left on a Markdown doc in mdview, 
 The human reads Markdown docs in mdview and comments on selected text. The
 comments live in a local SQLite store (`~/.mdview`), never in the doc. Read
 and answer them with `mdview comments`, and edit the doc itself with your
-usual file tools. If `mdview` is not on PATH, run
-`node ~/code/mdview/bin/mdview.mjs comments ...` instead.
+usual file tools.
 
 ## The loop
 
