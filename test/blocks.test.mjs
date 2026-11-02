@@ -1,6 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { locate } from "../lib/blocks.mjs";
+import { findBlock } from "peanut/anchors/markdown-block";
+
+/** Where an anchor lands among blocks, as mdview's own blocks.mjs reported it before peanut. */
+function locate(anchor, blocks) {
+  const block = findBlock(anchor, blocks);
+  return block ? { state: "attached", block } : { state: "outdated" };
+}
 import { parseBlocks, renderMarkdown } from "../lib/render.mjs";
 
 function anchorAt(src, index) {

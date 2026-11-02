@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { sha256 } from "../lib/blocks.mjs";
+import { sha256 } from "peanut/anchors/markdown-block";
 import { startServer } from "../lib/server.mjs";
 import { openStore } from "../lib/store.mjs";
 
