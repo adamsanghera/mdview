@@ -59,12 +59,12 @@ To keep an agent from reacting to each comment in turn, batch them. **Start batc
 
 Only you can delete, and only in the viewer: **Delete** on an open card removes the whole thread, and the × beside a reply removes that reply. Deleting is permanent. When a doc's last thread goes, mdview drops its stored versions too. [`skills/mdview-comments/SKILL.md`](skills/mdview-comments/SKILL.md) teaches an agent this loop. Copy it into your agent's skills folder.
 
-mdview never writes your docs. Comments live in `~/.mdview/mdview.sqlite3` (set `MDVIEW_HOME` to move it), keyed by each file's real path. Once a doc has a comment, mdview keeps a copy of each version of it that it sees, and each comment remembers the version it was made on:
+mdview never writes your docs. Comments live in `~/.mdview/peanut.sqlite3` (set `MDVIEW_HOME` to move it), kept by [peanut](../peanut), the comment library mdview shares with diffview, and keyed by each file's real path. Once a doc has a comment, mdview keeps a copy of each version of it that it sees, and each comment remembers the version it was made on:
 
 - A comment follows the doc into later versions while its paragraph, heading, list item, code block or table row keeps the same text. Reflowing a paragraph or renumbering a list does not change that.
 - When the text changes, the comment is marked outdated and moves to the "On older versions" list. It shows what the text now reads and links to the version it was made on.
 
-The version chip in the header (`v7`) lists every stored version. Renaming or moving a doc loses its comments. When a new mdview changes how the store is laid out, it copies the old store to `~/.mdview/backups/` before upgrading it.
+The version chip in the header (`v7`) lists every stored version. Renaming or moving a doc loses its comments.
 
 ## Safety
 

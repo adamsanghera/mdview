@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { sha256 } from "../lib/blocks.mjs";
+import { sha256 } from "peanut/anchors/markdown-block";
 import { parseBlocks } from "../lib/render.mjs";
 import { openStore, StoreError } from "../lib/store.mjs";
 
@@ -433,118 +433,6 @@ test("whose turn it is follows the last sent word, and a suggestion waits on the
   store.setStatus(id, "open", ADAM);
   assert.equal(turn(), "agent");
   assert.deepEqual(store.waitingOnAgent({ files: [file] }), [id]);
-});
-
-/**
- * Writes a store with the tables of an older mdview: one doc with `versions`
- * (contents, v1 first), one thread anchored to block `blockIndex` of version
- * `onVersion` with `quote`, and the given messages ([body, authorKind, pending]).
- */
-async function oldStore(name, { pendingColumn, version, messages, versions = ["Old text.\n"], onVersion = 1, blockIndex = 0, quote = "" }) {
-  const oldHome = path.join(dir, name);
-  await fs.mkdir(oldHome);
-  const { DatabaseSync } = await import("node:sqlite");
-  const db = new DatabaseSync(path.join(oldHome, "mdview.sqlite3"));
-  db.exec(`
-    CREATE TABLE docs (id INTEGER PRIMARY KEY, path TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL);
-    CREATE TABLE versions (id INTEGER PRIMARY KEY, doc_id INTEGER NOT NULL, seq INTEGER NOT NULL, sha256 TEXT NOT NULL,
-      content TEXT NOT NULL, observed_at TEXT NOT NULL, UNIQUE (doc_id, seq));
-    CREATE TABLE threads (id INTEGER PRIMARY KEY, doc_id INTEGER NOT NULL, version_id INTEGER NOT NULL, block_sha TEXT NOT NULL,
-      block_ordinal INTEGER NOT NULL, quote TEXT NOT NULL, start INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'open',
-      status_by TEXT, status_at TEXT, created_at TEXT NOT NULL);
-    CREATE TABLE messages (id INTEGER PRIMARY KEY, thread_id INTEGER NOT NULL, author TEXT NOT NULL, author_kind TEXT NOT NULL,
-      body TEXT NOT NULL, version_id INTEGER NOT NULL, session TEXT, created_at TEXT NOT NULL
-      ${pendingColumn ? ", pending INTEGER NOT NULL DEFAULT 0" : ""});
-    PRAGMA user_version = ${version};
-  `);
-  const at = "2026-10-20T12:00:00.000Z";
-  db.prepare("INSERT INTO docs VALUES (1, '/nowhere/old.md', ?)").run(at);
-  versions.forEach((content, i) => db.prepare("INSERT INTO versions VALUES (?, 1, ?, ?, ?, ?)").run(i + 1, i + 1, sha256(content), content, at));
-  const block = parseBlocks(versions[onVersion - 1])[blockIndex];
-  db.prepare("INSERT INTO threads VALUES (1, 1, ?, ?, ?, ?, 0, 'open', NULL, NULL, ?)").run(onVersion, block.sha, block.ordinal, quote, at);
-  messages.forEach(([body, kind, pending], i) => {
-    const columns = pendingColumn ? "(id, thread_id, author, author_kind, body, version_id, created_at, pending)" : "(id, thread_id, author, author_kind, body, version_id, created_at)";
-    const values = [i + 1, 1, kind === "human" ? "adam" : "agent", kind, body, onVersion, `2026-10-20T12:00:0${i}.000Z`];
-    if (pendingColumn) values.push(pending ? 1 : 0);
-    db.prepare(`INSERT INTO messages ${columns} VALUES (${values.map(() => "?").join(", ")})`).run(...values);
-  });
-  db.close();
-  return oldHome;
-}
-
-test("a store from before batches upgrades with every message sent at the time it was written", async () => {
-  const oldHome = await oldStore("v1-home", { pendingColumn: false, version: 1, messages: [["an old comment", "human"]] });
-
-  const migrated = await openStore(oldHome);
-  const { thread } = migrated.thread(1);
-  const pendingCount = migrated.pendingCount();
-  migrated.close();
-
-  assert.deepEqual([thread.messages.map((m) => [m.body, m.sentAt]), thread.waitingOn, pendingCount], [[["an old comment", "2026-10-20T12:00:00.000Z"]], "agent", 0]);
-});
-
-test("a version 2 store keeps its batch pending, drops the pending column, and is backed up first", async () => {
-  const oldHome = await oldStore("v2-home", {
-    pendingColumn: true,
-    version: 2,
-    messages: [["the comment", "human", false], ["an answer", "agent", false], ["a drafted reply", "human", true]],
-  });
-
-  const migrated = await openStore(oldHome);
-  const thread = migrated.thread(1, { includePending: true }).thread;
-  const pendingCount = migrated.pendingCount();
-  migrated.close();
-  const { DatabaseSync } = await import("node:sqlite");
-  const db = new DatabaseSync(path.join(oldHome, "mdview.sqlite3"), { readOnly: true });
-  const columns = Object.fromEntries(db.prepare("SELECT name, hidden FROM pragma_table_xinfo('messages')").all().map((c) => [c.name, c.hidden]));
-  const pendingByOldQuery = db.prepare("SELECT count(*) AS n FROM messages WHERE pending = 1").get().n;
-  const version = db.prepare("PRAGMA user_version").get().user_version;
-  db.close();
-  const backups = await fs.readdir(path.join(oldHome, "backups"));
-
-  assert.deepEqual(thread.messages.map((m) => [m.body, m.pending]), [["the comment", false], ["an answer", false], ["a drafted reply", true]]);
-  assert.equal(thread.waitingOn, "human");
-  assert.equal(pendingCount, 1);
-  assert.equal(columns.sent_at, 0);
-  assert.equal(columns.pending, 2, "pending is now a virtual column derived from sent_at");
-  assert.equal(pendingByOldQuery, 1, "a reader from before v3 still sees the batch");
-  assert.equal(version, 3);
-  assert.equal(backups.length, 1);
-  assert.match(backups[0], /^mdview-before-v3-.*\.sqlite3$/);
-});
-
-test("upgrading moves a comment whose quote is not in its block to the earlier version that holds it", async () => {
-  // As when the composer sent v2's sha with a block index taken from v1: block 3 of v2 is the heading.
-  const v1 = "# Plan\n\nIntro.\n\n## Steps\n\nThe agent writes the store.\n";
-  const v2 = "# Plan\n\nIntro.\n\nA new paragraph.\n\n## Steps\n\nThe agent writes the store.\n";
-  const misplaced = await oldStore("misplaced-home", {
-    pendingColumn: true,
-    version: 2,
-    versions: [v1, v2],
-    onVersion: 2,
-    blockIndex: 3,
-    quote: "writes the store",
-    messages: [["Which store?", "human", false]],
-  });
-  const placed = await oldStore("placed-home", {
-    pendingColumn: true,
-    version: 2,
-    versions: [v1, v2],
-    onVersion: 2,
-    blockIndex: 4,
-    quote: "writes the store",
-    messages: [["Which store?", "human", false]],
-  });
-
-  const fixed = await openStore(misplaced);
-  const moved = fixed.thread(1).thread;
-  fixed.close();
-  const untouched = await openStore(placed);
-  const kept = untouched.thread(1).thread;
-  untouched.close();
-
-  assert.deepEqual([moved.madeOn.seq, moved.state, moved.lines, moved.source], [1, "carried", [9, 9], "The agent writes the store."]);
-  assert.deepEqual([kept.madeOn.seq, kept.state, kept.lines], [2, "current", [9, 9]]);
 });
 
 test("messages record the version that was latest when they were written", async () => {
