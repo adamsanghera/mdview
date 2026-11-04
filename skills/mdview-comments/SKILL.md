@@ -28,6 +28,10 @@ usual file tools.
 Without flags, `list` prints a summary of every unresolved thread.
 `mdview comments show <id>...` prints chosen threads in full.
 
+A human reads every reply you write and every line you add to the doc.
+If the user has a prose linter, as a skill or a tool, run your text
+through it before you send a reply or save the doc.
+
 Never resolve or reopen a thread. Both belong to the human, and the CLI
 refuses them without `--human`, a flag that is not for you.
 
