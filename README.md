@@ -3,6 +3,7 @@
 A local Markdown reader. Point it at a file or a folder, and it opens a browser tab with:
 
 - GitHub-flavored rendering: tables, task lists, footnotes and syntax-highlighted code
+- Notion-style toggle lists: a bullet that starts with `> ` folds away the rest of its item until you open it (example below)
 - a file sidebar you can filter, and an "On this page" outline that follows your scroll
 - relative links between documents that open in the viewer, with images served alongside
 - live reload: save the file and the page updates without losing your place
@@ -33,6 +34,16 @@ The sidebar and links reach only files under the root. A link that climbs above 
 |---|---|
 | `/` | filter files (Enter opens the first match, Esc clears) |
 | `\` | show or hide the file list |
+
+A toggle's first line is its title. Everything else in the item, including nested bullets and other toggles, shows once you open it:
+
+```markdown
+- > Why MySQL
+  Vitess shards it, and the team already runs it.
+  - a nested bullet, hidden too
+```
+
+On GitHub the same bullet reads as a quote with its text under it. A raw `<details>` block looks and behaves the same way. Toggles start closed, live reload keeps the ones you opened open, opening a comment hidden in one opens it, and printing opens them all.
 
 The header shows word count, reading time and when the file last changed. Its buttons copy the file's Markdown, open it in Cursor, and switch the theme. The dot turns green while live reload is connected. Clicking the file path copies its absolute path.
 

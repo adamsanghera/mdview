@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { renderMarkdown, resolveHref, splitFrontMatter } from "../lib/render.mjs";
+import { parseBlocks, renderMarkdown, resolveHref, splitFrontMatter } from "../lib/render.mjs";
 
 test("resolveHref maps links from a document to viewer URLs", () => {
   [
@@ -60,6 +60,68 @@ test("renderMarkdown wraps tables, highlights code and counts words", () => {
   assert.match(doc.html, /<pre data-block="\d+" class="code" data-lang="js"><code class="hljs">.*hljs-keyword/s);
   assert.equal(doc.words, 8);
   assert.equal(doc.minutes, 1);
+});
+
+test("renderMarkdown folds a bullet that starts with a quote into a toggle", () => {
+  const src = "- plain\n- > Why **MySQL**\n  Hidden text.\n  - hidden bullet\n";
+
+  const { html } = renderMarkdown(src, "doc.md");
+
+  assert.equal(
+    html,
+    [
+      "<ul>",
+      '<li data-block="0">plain</li>',
+      '<li class="toggle">',
+      "<details>",
+      '<summary data-block="1">Why <strong>MySQL</strong></summary>',
+      '<p data-block="2">Hidden text.</p>',
+      "<ul>",
+      '<li data-block="3">hidden bullet</li>',
+      "</ul>",
+      "</details>",
+      "</li>",
+      "</ul>",
+      "",
+    ].join("\n"),
+  );
+});
+
+test("renderMarkdown leaves quotes that are not toggles alone", () => {
+  [
+    { desc: "in a numbered list", src: "1. > quoted\n" },
+    { desc: "holding two paragraphs", src: "- > one\n  >\n  > two\n" },
+    { desc: "after the bullet's text", src: "- text\n\n  > quoted\n" },
+    { desc: "outside a list", src: "> quoted\n" },
+  ].forEach((tc) => {
+    const { html } = renderMarkdown(tc.src, "doc.md");
+    assert.match(html, /<blockquote>/, tc.desc);
+    assert.doesNotMatch(html, /<details>/, tc.desc);
+  });
+});
+
+test("toggles nest, and each title and paragraph keeps its own block and lines", () => {
+  const src = "- > Outer\n  - > Inner\n    inner body\n\n- > Loose\n\n  Body.\n";
+
+  const { html } = renderMarkdown(src, "doc.md");
+  const blocks = parseBlocks(src).map((b) => [b.text, b.startLine, b.endLine]);
+
+  assert.equal(html.match(/<details>/g).length, 3);
+  assert.match(html, /<summary data-block="1">Inner<\/summary>\n<p data-block="2">inner body<\/p>\n<\/details>\n<\/li>\n<\/ul>\n<\/details>/);
+  assert.deepEqual(blocks, [
+    ["Outer", 1, 1],
+    ["Inner", 2, 2],
+    ["inner body", 3, 3],
+    ["Loose", 5, 5],
+    ["Body.", 7, 7],
+  ]);
+});
+
+test("a toggle's title keeps the block hash it had as a quote", () => {
+  const [asQuote] = parseBlocks("> Why MySQL\n");
+  const [asToggle] = parseBlocks("- > Why MySQL\n  Because.\n");
+
+  assert.equal(asToggle.sha, asQuote.sha);
 });
 
 test("splitFrontMatter separates a leading YAML block", () => {

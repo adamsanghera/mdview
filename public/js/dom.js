@@ -37,6 +37,24 @@ export async function copyText(text) {
   }
 }
 
+/**
+ * The closed toggles (<details>) that hide `node`, innermost first. A
+ * toggle's title (its <summary>) shows while it is closed, so a node in the
+ * title is not hidden by that toggle.
+ */
+export function closedTogglesAround(node) {
+  const el = node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement;
+  const toggles = [];
+  for (let toggle = el?.closest("details"); toggle; toggle = toggle.parentElement?.closest("details")) {
+    if (!toggle.open && !toggle.querySelector(":scope > summary")?.contains(el)) toggles.push(toggle);
+  }
+  return toggles;
+}
+
+export function openTogglesAround(node) {
+  for (const toggle of closedTogglesAround(node)) toggle.open = true;
+}
+
 /** Grows a textarea to fit its text. */
 export function autosize(input) {
   input.style.height = "auto";

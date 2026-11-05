@@ -1,10 +1,11 @@
 /** The comment rail: docked in the margin beside the doc when there is room, else a drawer. */
-import { $, autosize, root } from "../dom.js";
+import { $, autosize, openTogglesAround, root } from "../dom.js";
 import { stackCards } from "../lib/card-stack.js";
 import { railHead, railList, threadCard } from "../lib/cards.js";
 import { railLayout } from "../lib/layout.js";
 import { SPY_OFFSET_PX } from "../scroll.js";
 import { state } from "../state.js";
+import { visibleRect } from "./anchors.js";
 import { paintMarks, renderTocMarks } from "./marks.js";
 
 const CARD_GAP_PX = 10;
@@ -83,7 +84,7 @@ function layoutRail() {
   const items = [...rail.querySelectorAll(".thread")]
     .map((card) => {
       const range = state.comments.ranges.get(Number(card.dataset.thread));
-      return range && { card, target: range.getBoundingClientRect().top - railTop, height: card.offsetHeight };
+      return range && { card, target: visibleRect(range).top - railTop, height: card.offsetHeight };
     })
     .filter(Boolean)
     .sort((a, b) => a.target - b.target);
@@ -108,11 +109,12 @@ export function scheduleLayout() {
 
 export function activate(id, { scroll = false } = {}) {
   const comments = state.comments;
+  const range = comments.ranges.get(id) ?? comments.nowRanges.get(id);
+  if (range) openTogglesAround(range.startContainer);
   comments.active = id;
   if (!root.classList.contains("rail-docked")) root.classList.add("drawer-open");
   renderRail();
   paintMarks();
-  const range = comments.ranges.get(id) ?? comments.nowRanges.get(id);
   if (scroll && range) {
     const rect = range.getBoundingClientRect();
     if (rect.top < SPY_OFFSET_PX || rect.bottom > innerHeight) scrollBy({ top: rect.top - innerHeight / 3, behavior: "smooth" });
@@ -131,6 +133,9 @@ export function deactivate() {
 /** Jumps straight to a thread's text, with no scroll animation, and opens the thread. */
 export function jumpToThread(id) {
   const range = state.comments.ranges.get(id);
-  if (range) scrollBy({ top: range.getBoundingClientRect().top - innerHeight / 3, behavior: "instant" });
+  if (range) {
+    openTogglesAround(range.startContainer);
+    scrollBy({ top: range.getBoundingClientRect().top - innerHeight / 3, behavior: "instant" });
+  }
   activate(id);
 }

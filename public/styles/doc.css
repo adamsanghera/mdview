@@ -113,6 +113,34 @@
 .doc .task-list-item { list-style: none; }
 .doc .task-list-item input { margin: 0 0.5em 0 -1.3em; vertical-align: -1px; }
 
+/* Toggles: a bullet written "- > Title" (li.toggle), or a raw <details>. A triangle stands in
+   for the bullet, in the list's gutter, and turns down while the toggle is open. */
+.doc li.toggle { list-style: none; }
+.doc details:not(.frontmatter) { padding-left: 1.6em; }
+.doc li.toggle > details { margin: 0; padding-left: 0; }
+.doc details:not(.frontmatter) > summary {
+  position: relative;
+  display: block;
+  cursor: pointer;
+}
+.doc details:not(.frontmatter) > summary::-webkit-details-marker { display: none; }
+.doc details:not(.frontmatter) > summary::before {
+  content: "";
+  position: absolute;
+  top: 0.55em;
+  left: -1.15em;
+  width: 0.6em;
+  height: 0.6em;
+  background: var(--text-soft);
+  clip-path: polygon(20% 5%, 90% 50%, 20% 95%);
+  transition: transform 120ms;
+}
+.doc details:not(.frontmatter) > summary:hover::before { background: var(--text); }
+.doc details[open]:not(.frontmatter) > summary::before { transform: rotate(90deg); }
+.doc details:not(.frontmatter) > summary + * { margin-top: 0.3em; }
+.doc details:not(.frontmatter) > :last-child { margin-bottom: 0; }
+.doc li.toggle > details > :is(p, ul, ol) { margin: 0.3em 0 0; }
+
 .doc .footnotes { margin-top: 3em; font-size: 0.9em; color: var(--text-soft); }
 
 .frontmatter {

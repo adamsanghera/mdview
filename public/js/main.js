@@ -10,7 +10,7 @@
 import { composerOpen } from "./comments/composer.js";
 import { forgetRanges, initComments, loadComments, onLayoutChange, resetComments } from "./comments/index.js";
 import { $, copyText, getJson, toast } from "./dom.js";
-import { docHooks, loadDoc, renderMeta, showError } from "./doc.js";
+import { docHooks, loadDoc, renderMeta, showError, watchToggles } from "./doc.js";
 import { encodePath, relFromPathname, versionFromSearch } from "./lib/paths.js";
 import { watchNavigation } from "./nav.js";
 import { scheduleScrollUpdate, updateScroll } from "./scroll.js";
@@ -49,6 +49,7 @@ async function init() {
   addEventListener("resize", updateScroll);
   addEventListener("resize", onLayoutChange);
   addEventListener("resize", scheduleTableLayout);
+  watchToggles();
   watchNavigation();
   watchShortcuts();
   setInterval(renderMeta, 30_000);

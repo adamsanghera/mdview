@@ -1,11 +1,11 @@
 /** The document: loading and rendering it, its outline and breadcrumbs, and live reload. */
-import { $, copyText, getJson, root } from "./dom.js";
+import { $, copyText, getJson, openTogglesAround, root } from "./dom.js";
 import { ago, escapeHtml } from "./lib/format.js";
 import { encodePath } from "./lib/paths.js";
-import { updateScroll } from "./scroll.js";
+import { scheduleScrollUpdate, updateScroll } from "./scroll.js";
 import { expandAncestors, refreshTree, renderTree, revealActiveFile } from "./sidebar.js";
 import { state } from "./state.js";
-import { layoutTables } from "./tables.js";
+import { layoutTables, scheduleTableLayout } from "./tables.js";
 
 const COPY_ICON = '<svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>';
 
@@ -98,7 +98,52 @@ export function scrollToHash(hash, behavior = "smooth") {
   } catch {
     // Use the raw fragment.
   }
-  document.getElementById(id)?.scrollIntoView({ behavior, block: "start" });
+  const target = document.getElementById(id);
+  openTogglesAround(target);
+  target?.scrollIntoView({ behavior, block: "start" });
+}
+
+/**
+ * Names each toggle in the article by its title and how many toggles above
+ * it share that title, so a reload can reopen the toggles the reader opened
+ * even after text around them changes.
+ */
+function togglesByKey(article) {
+  const seen = new Map();
+  return [...article.querySelectorAll("details")].map((toggle) => {
+    const title = toggle.querySelector(":scope > summary")?.textContent.trim() ?? "";
+    const repeat = seen.get(title) ?? 0;
+    seen.set(title, repeat + 1);
+    return { toggle, key: `${repeat}:${title}` };
+  });
+}
+
+/** Keeps the page in step with toggles (<details>) opening and closing, and prints them open. */
+export function watchToggles() {
+  const article = $("#doc");
+  // A closed toggle's tables measure zero wide, and opening one moves the headings below it.
+  article.addEventListener(
+    "toggle",
+    () => {
+      scheduleTableLayout();
+      scheduleScrollUpdate();
+    },
+    true,
+  );
+  // Selecting text in a toggle's title, to comment on it, must not also open or close the toggle.
+  article.addEventListener("click", (event) => {
+    if (event.target.closest("summary") && !getSelection().isCollapsed) event.preventDefault();
+  });
+  // A closed toggle's content does not print.
+  let opened = [];
+  addEventListener("beforeprint", () => {
+    opened = [...document.querySelectorAll("#doc details:not(.frontmatter, [open])")];
+    for (const toggle of opened) toggle.open = true;
+  });
+  addEventListener("afterprint", () => {
+    for (const toggle of opened) toggle.open = false;
+    opened = [];
+  });
 }
 
 function versionBanner(doc) {
@@ -131,8 +176,10 @@ export async function loadDoc(rel, { keepScroll = false, hash = location.hash, v
   if (location.pathname + location.search + location.hash !== canonical) history.replaceState(null, "", canonical);
 
   const article = $("#doc");
+  const opened = sameDoc ? new Set(togglesByKey(article).filter((t) => t.toggle.open).map((t) => t.key)) : new Set();
   article.innerHTML =
     (doc.old ? versionBanner(doc) : "") + (doc.frontMatter ? renderFrontMatter(doc.frontMatter) : "") + doc.html;
+  for (const { toggle, key } of togglesByKey(article)) if (opened.has(key)) toggle.open = true;
   docHooks.replaced();
   enhance(article);
   layoutTables();

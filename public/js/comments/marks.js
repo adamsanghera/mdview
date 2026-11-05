@@ -3,6 +3,7 @@ import { $ } from "../dom.js";
 import { escapeHtml, truncate } from "../lib/format.js";
 import { placeTick } from "../lib/ticks.js";
 import { state, threadById } from "../state.js";
+import { visibleRect } from "./anchors.js";
 
 const MARK_PREVIEW_CHARS = 80;
 const HIGHLIGHTS =
@@ -62,7 +63,7 @@ export function renderTocMarks() {
   for (const [id, range] of comments.ranges) {
     const thread = threadById(id);
     if (!thread) continue;
-    const { index, share } = placeTick(tops, range.getBoundingClientRect().top + scrollY, docEnd);
+    const { index, share } = placeTick(tops, visibleRect(range).top + scrollY, docEnd);
     const { link } = sections[index];
     marks.push({ id, thread, top: link.offsetTop + share * link.offsetHeight });
   }

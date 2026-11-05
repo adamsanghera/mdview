@@ -1,5 +1,5 @@
 /** Between DOM selections and a block's text: what the server anchors to, and what a thread highlights. */
-import { $ } from "../dom.js";
+import { $, closedTogglesAround } from "../dom.js";
 import { findQuote } from "../lib/quote.js";
 import { state } from "../state.js";
 
@@ -71,6 +71,13 @@ export function rangeFor(thread) {
   range.setStart(...domPoint(nodes, start));
   range.setEnd(...domPoint(nodes, end));
   return range;
+}
+
+/** Where a range shows on the page: its own box, or the title of the outermost closed toggle hiding it. */
+export function visibleRect(range) {
+  const outer = closedTogglesAround(range.startContainer).at(-1);
+  const shown = outer ? (outer.querySelector(":scope > summary") ?? outer) : range;
+  return shown.getBoundingClientRect();
 }
 
 export function threadAtPoint(x, y) {

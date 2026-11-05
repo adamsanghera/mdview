@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { chromeMissing, sharedChrome } from "../helpers/browser.mjs";
 import { AGENT, HUMAN, startViewer } from "../helpers/viewer.mjs";
-import { click, comment, highlighted } from "../helpers/viewer-page.mjs";
+import { click, comment, highlighted, select } from "../helpers/viewer-page.mjs";
 
 const row = (cells) => `| ${cells.join(" | ")} |`;
 const table = (head, body) => [row(head), row(head.map(() => "---")), ...body.map(row)].join("\n");
@@ -107,6 +107,53 @@ test("live reload shows the file's new text", { skip: chromeMissing }, async (t)
   await page.waitFor(() => document.querySelector("#live").classList.contains("on"), { what: "live reload to connect" });
   await viewer.write("plan.md", PLAN.replace("The end.", "The real end."));
   await page.waitFor(() => document.querySelector("#doc").textContent.includes("The real end."), { what: "the reload" });
+});
+
+const TOGGLES = `# Plan
+
+- > First toggle
+  Hidden under the first.
+- > Second toggle
+  Hidden under the second.
+`;
+
+test("a toggle the reader opened stays open across a live reload", { skip: chromeMissing }, async (t) => {
+  const { page, viewer } = await setup(t, { files: { "plan.md": TOGGLES } });
+  await page.waitFor(() => document.querySelector("#live").classList.contains("on"), { what: "live reload to connect" });
+  await click(page, "#doc li.toggle:nth-child(2) summary");
+
+  await viewer.write("plan.md", TOGGLES.replace("# Plan\n", "# Plan\n\nAdded above.\n"));
+  await page.waitFor(() => document.querySelector("#doc").textContent.includes("Added above."), { what: "the reload" });
+
+  const open = await page.eval(() => [...document.querySelectorAll("#doc details")].map((d) => d.open));
+  assert.deepEqual(open, [false, true]);
+});
+
+test("selecting a toggle's title to comment on it leaves the toggle as it was", { skip: chromeMissing }, async (t) => {
+  const { page } = await setup(t, { files: { "plan.md": TOGGLES } });
+  await select(page, "First toggle");
+
+  await click(page, "#doc li.toggle:nth-child(1) summary");
+
+  assert.equal(await page.eval(() => document.querySelector("#doc li.toggle:nth-child(1) details").open), false);
+});
+
+test("a comment inside a closed toggle waits on its title, and opening the thread opens the toggle", { skip: chromeMissing }, async (t) => {
+  const { page } = await setup(t, { files: { "plan.md": TOGGLES }, before: (v) => threadOn(v, "Hidden under the second.") });
+  await page.waitFor(() => document.querySelector("#rail .thread"), { what: "the card" });
+  const tops = () =>
+    page.eval(() => ({
+      card: Math.round(document.querySelector("#rail .thread").getBoundingClientRect().top),
+      title: Math.round(document.querySelector("#doc li.toggle:nth-child(2) summary").getBoundingClientRect().top),
+    }));
+  const closed = await tops();
+  assert.equal(closed.card, closed.title);
+
+  await click(page, "#rail .thread");
+
+  await page.waitFor(() => document.querySelector("#doc li.toggle:nth-child(2) details").open, { what: "the toggle to open" });
+  assert.equal(await page.eval(() => document.querySelector("#doc li.toggle:nth-child(1) details").open), false);
+  assert.deepEqual(await highlighted(page, "active"), ["Hidden under the second."]);
 });
 
 test("a wide table starts flush with the text and scrolls across the space on both sides", { skip: chromeMissing }, async (t) => {
