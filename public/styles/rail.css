@@ -17,12 +17,17 @@
 .rail-docked .content { display: flex; justify-content: center; align-items: flex-start; gap: var(--rail-gap); }
 .rail-docked .doc { flex: 0 1 var(--doc-width); min-width: 0; margin: 0; }
 .rail-docked .rail { display: block; position: relative; flex: 0 0 var(--rail-width); padding-top: 18px; }
+/* The list is a panel of its own, so it never reads as cards in the margin. */
 .rail-docked .rail.listing {
   position: sticky;
-  top: var(--topbar);
-  max-height: calc(100vh - var(--topbar));
+  top: calc(var(--topbar) + 18px);
+  max-height: calc(100vh - var(--topbar) - 36px);
   overflow-y: auto;
-  padding-bottom: 40px;
+  margin-top: 18px;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-soft);
   scrollbar-width: thin;
 }
 .rail:not(.listing) .thread { position: absolute; left: 0; right: 0; }
@@ -47,7 +52,7 @@
 
 .rail-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
   margin-bottom: 10px;
@@ -63,8 +68,21 @@
   color: var(--text-faint);
 }
 .rail-group span { font-weight: 400; }
+.rail-head + .rail-group { margin-top: 0; }
 .rail-empty { font-size: var(--text-md); color: var(--text-faint); }
 .listing .thread + .thread { margin-top: 10px; }
+
+.seg { display: inline-flex; flex: none; padding: 2px; border-radius: var(--radius-sm); background: var(--hover); }
+.seg button {
+  height: 22px;
+  padding: 0 9px;
+  border-radius: var(--radius-xs);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-soft);
+}
+.seg button:hover { color: var(--text); }
+.seg button[aria-pressed="true"] { background: var(--bg); color: var(--text); box-shadow: var(--shadow-sm); }
 
 .link { color: var(--accent); }
 .link:hover { text-decoration: underline; }

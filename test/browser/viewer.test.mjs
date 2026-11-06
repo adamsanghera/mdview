@@ -101,6 +101,61 @@ test("a closed card resolves in one click, which clears its highlight", { skip: 
   await page.waitFor(() => CSS.highlights.get("mdview-comment-open")?.size === 0, { what: "the highlight to clear" });
 });
 
+test("resolving the last thread keeps the margin, so the doc does not move sideways", { skip: chromeMissing }, async (t) => {
+  const { page } = await setup(t, { before: (v) => threadOn(v, "Then the viewer reads it.") });
+  await page.waitFor(() => document.documentElement.classList.contains("rail-docked"), { what: "the rail to dock" });
+  const docLeft = () => page.eval(() => document.querySelector("#doc").getBoundingClientRect().left);
+  const before = await docLeft();
+
+  await click(page, '#rail .thread [data-action="resolved"]');
+
+  await page.waitFor(() => !document.querySelector("#rail .thread"), { what: "the card to go" });
+  assert.equal(await page.eval(() => document.documentElement.classList.contains("rail-docked")), true);
+  assert.equal(await docLeft(), before);
+});
+
+test("clicking a card stacked far below its text keeps it under the pointer, and scrolls its text level with it", { skip: chromeMissing }, async (t) => {
+  const body = "A comment long enough to fill the three lines a closed card shows, so that cards on the same text stack well below it.";
+  // Far enough down that the seven cards stacked above the open one fit between it and the top.
+  const filler = Array.from({ length: 40 }, (_, i) => `Filler paragraph ${i}.`).join("\n\n");
+  const { page } = await setup(t, {
+    files: { "plan.md": `# Plan\n\n${filler}\n\nThe target sentence.\n` },
+    before: (v) => {
+      for (let i = 0; i < 8; i++) threadOn(v, "The target sentence.", body);
+    },
+  });
+  await page.waitFor(() => document.querySelectorAll("#rail .thread").length === 8, { what: "eight cards" });
+  const last = () =>
+    page.eval(() => {
+      const card = document.querySelector("#rail .thread:last-of-type");
+      const text = document.createRange();
+      text.selectNodeContents([...document.querySelectorAll("#doc p")].find((p) => p.textContent.includes("The target sentence.")));
+      return { card: card.getBoundingClientRect().top, text: text.getClientRects()[0].top, expanded: card.classList.contains("expanded") };
+    });
+  await page.eval(() => window.scrollTo(0, document.querySelector("#rail .thread:last-of-type").getBoundingClientRect().top + scrollY - 700));
+  const before = await last();
+  assert.ok(before.card - before.text > 600, `the last card starts well below its text: ${JSON.stringify(before)}`);
+
+  await click(page, "#rail .thread:last-of-type .message-body");
+
+  const after = await last();
+  assert.equal(after.expanded, true);
+  assert.ok(Math.abs(after.card - before.card) <= 1, `the card stays where it was clicked: ${JSON.stringify({ before, after })}`);
+  assert.ok(Math.abs(after.card - after.text) <= 1, `its text comes level with it: ${JSON.stringify(after)}`);
+});
+
+test("the header's switch shows the list as a panel, and goes back to the margin", { skip: chromeMissing }, async (t) => {
+  const { page } = await setup(t, { before: (v) => threadOn(v, "Then the viewer reads it.") });
+  await page.waitFor(() => document.querySelector('#rail [data-mode="list"]'), { what: "the switch" });
+
+  await click(page, '#rail [data-mode="list"]');
+  assert.equal(await page.eval(() => document.querySelector("#rail").classList.contains("listing")), true);
+  assert.equal(await page.eval(() => document.querySelector('#rail [data-mode="list"]').getAttribute("aria-pressed")), "true");
+
+  await click(page, '#rail [data-mode="margin"]');
+  assert.equal(await page.eval(() => document.querySelector("#rail").classList.contains("listing")), false);
+});
+
 test("a thread deletes in two clicks from its card's menu, with no dialog", { skip: chromeMissing }, async (t) => {
   const { page, viewer } = await setup(t, { before: (v) => threadOn(v, "Then the viewer reads it.") });
   await page.waitFor(() => document.querySelector("#rail .thread"), { what: "the card" });

@@ -39,6 +39,7 @@ export function resetComments() {
   comments.version = null;
   comments.loaded = null;
   comments.active = null;
+  comments.railHeld = false;
   comments.replyText.clear();
   root.classList.remove("drawer-open");
   renderComments();

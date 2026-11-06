@@ -98,15 +98,24 @@ export function threadCard(t, { expanded = false, batching = false, docPath }) {
   </section>`;
 }
 
-/** The rail's header: the unresolved count, and the toggle between margin and list. */
+const RAIL_MODES = [
+  ["margin", "Beside text", "Each comment next to the text it is on"],
+  ["list", "List", "Every comment on this doc, grouped by who it waits on"],
+];
+
+/**
+ * The rail's header: the unresolved count, and, when docked, a switch between
+ * cards beside the text and the list. The drawer has a Close link instead.
+ */
 export function railHead(threads, { listing, docked }) {
   const unresolved = threads.filter((t) => t.status !== "resolved");
   const older = unresolved.filter((t) => t.state === "outdated").length;
-  const olderLink = older && !listing ? ` · <button class="link" data-action="list">${older} on older versions</button>` : "";
-  const toggle = docked
-    ? `<button class="link" data-action="list">${listing ? "Show in margin" : "All comments"}</button>`
-    : '<button class="link" data-action="close">Close</button>';
-  return `<div class="rail-head"><span>${unresolved.length} unresolved${olderLink}</span>${toggle}</div>`;
+  const olderLink = older && !listing ? ` · <button class="link" type="button" data-action="list">${older} on older versions</button>` : "";
+  const modes = RAIL_MODES.map(
+    ([mode, label, title]) => `<button type="button" data-action="rail-mode" data-mode="${mode}" title="${title}" aria-pressed="${(mode === "list") === listing}">${label}</button>`,
+  ).join("");
+  const control = docked ? `<div class="seg" role="group" aria-label="Show comments">${modes}</div>` : '<button class="link" type="button" data-action="close">Close</button>';
+  return `<div class="rail-head"><span>${unresolved.length} unresolved${olderLink}</span>${control}</div>`;
 }
 
 /** The list view: every thread under the first group that takes it, with the `active` one open. */

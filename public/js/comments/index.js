@@ -5,7 +5,7 @@ import { state } from "../state.js";
 import { deleteMessage, deleteThread, discardBatch, sendBatch, sendReply, setThreadStatus, submitComment } from "./actions.js";
 import { threadAtPoint } from "./anchors.js";
 import { closeComposer, openComposer, updateCommentButton } from "./composer.js";
-import { activate, deactivate, jumpToThread, openThreadMenu, renderRail, scheduleLayout, updateRailMode } from "./rail.js";
+import { activate, deactivate, jumpToThread, openClickedCard, openThreadMenu, renderRail, scheduleLayout, updateRailMode } from "./rail.js";
 import { closeVersionsMenu, toggleVersionsMenu } from "./topbar.js";
 
 export { forgetRanges, loadComments, resetComments } from "./model.js";
@@ -23,8 +23,10 @@ export function initComments() {
     if (versionLink) {
       // The document-level link handler navigates; open the thread once that version loads.
       state.comments.activateAfterLoad = Number(versionLink.dataset.threadLink);
-    } else if (action === "list") {
-      state.comments.listMode = !state.comments.listMode;
+    } else if (action === "list" || action === "rail-mode") {
+      const listing = action === "list" ? !state.comments.listMode : event.target.closest("[data-mode]").dataset.mode === "list";
+      if (listing === state.comments.listMode) return;
+      state.comments.listMode = listing;
       updateRailMode();
       renderRail();
     } else if (action === "close") {
@@ -39,7 +41,7 @@ export function initComments() {
     } else if (action === "delete-message") {
       deleteMessage(Number(card.dataset.thread), Number(event.target.closest("[data-message]").dataset.message));
     } else if (card && !card.classList.contains("expanded") && !event.target.closest("a")) {
-      activate(Number(card.dataset.thread), { scroll: true });
+      openClickedCard(card);
     }
   });
   rail.addEventListener("keydown", (event) => {

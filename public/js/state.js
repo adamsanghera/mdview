@@ -26,6 +26,8 @@ export const state = {
     activateAfterLoad: null,
     active: null,
     listMode: false,
+    /** Set once the margin has held a thread on the doc shown, so resolving the last one does not take the margin away and move the doc sideways. */
+    railHeld: false,
     replyText: new Map(),
     selection: null,
     composerText: "",

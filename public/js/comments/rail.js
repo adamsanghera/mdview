@@ -20,8 +20,9 @@ const tokenPx = (name) => parseFloat(getComputedStyle(root).getPropertyValue(nam
 export function updateRailMode() {
   const comments = state.comments;
   root.classList.remove("toc-yields");
+  if (comments.threads.some((t) => t.status !== "resolved")) comments.railHeld = true;
   const { docked, tocYields } = railLayout({
-    wanted: comments.listMode || comments.threads.some((t) => t.status !== "resolved"),
+    wanted: comments.listMode || comments.railHeld,
     content: $(".content").clientWidth,
     toc: $("#toc-pane").offsetWidth,
     doc: parseFloat(getComputedStyle($("#doc")).maxWidth),
@@ -142,6 +143,24 @@ export function deactivate() {
   renderRail();
   paintMarks();
   return true;
+}
+
+/**
+ * Opens a card the reader clicked. In the margin, the open card sits level
+ * with its text, which can be a screen away from where stacking had put it,
+ * so the page scrolls by as much: the card stays under the pointer and its
+ * text comes to it.
+ */
+export function openClickedCard(card) {
+  const id = Number(card.dataset.thread);
+  if ($("#rail").classList.contains("listing")) {
+    activate(id, { scroll: true });
+    return;
+  }
+  const clickedAt = card.getBoundingClientRect().top;
+  activate(id);
+  const opened = $(`#rail .thread[data-thread="${id}"]`);
+  if (opened) scrollBy({ top: opened.getBoundingClientRect().top - clickedAt, behavior: "instant" });
 }
 
 /** Jumps straight to a thread's text, with no scroll animation, and opens the thread. */

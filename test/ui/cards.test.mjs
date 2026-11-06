@@ -112,6 +112,15 @@ test("an agent's message names its session", () => {
   assert.match(threadCard(t, { docPath: "plan.md" }), /<span class="badge" title="Session chat-&lt;1&gt;">agent<\/span>/);
 });
 
+test("the docked header switches between the margin and the list, and shows which is on; the drawer's closes", () => {
+  const pressed = (html) => [...html.matchAll(/data-mode="(\w+)"[^>]*aria-pressed="true"/g)].map(([, mode]) => mode);
+  assert.deepEqual(pressed(railHead([], { listing: false, docked: true })), ["margin"]);
+  assert.deepEqual(pressed(railHead([], { listing: true, docked: true })), ["list"]);
+  const drawer = railHead([], { listing: true, docked: false });
+  assert.match(drawer, /data-action="close"/);
+  assert.doesNotMatch(drawer, /data-mode/);
+});
+
 test("the header counts unresolved threads and those on older versions", () => {
   const threads = [thread(), thread({ state: "outdated" }), thread({ status: "resolved" })];
   const html = railHead(threads, { listing: false, docked: true });
