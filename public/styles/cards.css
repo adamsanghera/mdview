@@ -19,13 +19,68 @@
   box-shadow: var(--shadow-md);
   cursor: default;
 }
+/* The left bar is the color the thread's text is highlighted in. */
+.thread[data-status="open"] { border-left: 3px solid var(--state-open); }
 .thread[data-status="suggested"] { border-left: 3px solid var(--state-suggested); }
 .thread[data-status="open"][data-turn="human"] { border-left: 3px solid var(--state-turn); }
-.thread[data-pending="true"] { border-style: dashed; }
+/* A draft: the gray its text is marked with, over a faint wash, until the batch is sent. */
+.thread[data-pending="true"] { border-left: 3px solid var(--state-draft); background: var(--bg-soft); }
 .thread[data-status="resolved"] { opacity: 0.75; }
 
-.thread-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 6px; font-size: var(--text-sm); color: var(--text-faint); }
+/* Chips wrap among themselves, so Resolve and the menu stay at the top right however many there are. */
+.thread-head { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 6px; font-size: var(--text-sm); color: var(--text-faint); }
+.thread-tags { display: flex; flex: 1; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; min-height: 20px; }
 .thread-id { font-variant-numeric: tabular-nums; }
+.thread-head-end { display: inline-flex; flex: none; align-items: center; gap: 2px; }
+.thread-resolve {
+  height: 20px;
+  padding: 0 8px;
+  border-radius: var(--radius-xs);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-soft);
+}
+.thread-resolve:hover { background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); }
+.thread-more { position: relative; display: inline-flex; }
+.thread-more-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 20px;
+  padding: 0;
+  border-radius: var(--radius-xs);
+  color: var(--text-faint);
+}
+.thread-more-btn:hover,
+.thread-more-btn[aria-expanded="true"] { background: var(--hover); color: var(--text); }
+.icon-dots { stroke-width: 2.5; }
+.thread-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 40;
+  min-width: 150px;
+  padding: 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  box-shadow: var(--shadow-md);
+}
+.thread-menu[hidden] { display: none; }
+.thread-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: var(--radius-xs);
+  font-size: var(--text-md);
+  color: var(--danger);
+  white-space: nowrap;
+}
+.thread-menu button:hover { background: var(--hover); }
+/* Over the cards stacked below it, which come later in the rail. */
+.thread.menu-open { z-index: 3; }
 
 .chip {
   padding: 0 7px;
@@ -38,7 +93,6 @@
   white-space: nowrap;
 }
 .chip-suggested { color: var(--state-suggested); border-color: color-mix(in srgb, var(--state-suggested) 45%, transparent); }
-.chip-pending { border-style: dashed; color: var(--text-soft); }
 .chip-turn { color: var(--state-turn); border-color: color-mix(in srgb, var(--state-turn) 45%, transparent); }
 .chip-outdated { color: var(--state-outdated); border-color: color-mix(in srgb, var(--state-outdated) 45%, transparent); }
 

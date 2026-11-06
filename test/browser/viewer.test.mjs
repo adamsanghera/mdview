@@ -92,14 +92,25 @@ test("a batched comment stays hidden from agents until the batch is sent", { ski
   await page.waitFor(() => !document.querySelector("#rail .chip-pending"), { what: "the pending chip to go" });
 });
 
-test("resolving a thread clears its highlight", { skip: chromeMissing }, async (t) => {
+test("a closed card resolves in one click, which clears its highlight", { skip: chromeMissing }, async (t) => {
   const { page } = await setup(t, { before: (v) => threadOn(v, "Then the viewer reads it.") });
   await page.waitFor(() => CSS.highlights.get("mdview-comment-open")?.size === 1, { what: "the highlight" });
 
-  await click(page, "#rail .thread");
-  await page.waitFor(() => document.querySelector("#rail .thread.expanded"), { what: "the card to open" });
   await click(page, '#rail .thread [data-action="resolved"]');
+
   await page.waitFor(() => CSS.highlights.get("mdview-comment-open")?.size === 0, { what: "the highlight to clear" });
+});
+
+test("a thread deletes in two clicks from its card's menu, with no dialog", { skip: chromeMissing }, async (t) => {
+  const { page, viewer } = await setup(t, { before: (v) => threadOn(v, "Then the viewer reads it.") });
+  await page.waitFor(() => document.querySelector("#rail .thread"), { what: "the card" });
+
+  await click(page, '#rail .thread [data-action="thread-menu"]');
+  assert.equal(await page.eval(() => document.querySelector("#rail .thread-menu").hidden), false);
+  await click(page, '#rail .thread [data-action="delete-thread"]');
+
+  await page.waitFor(() => !document.querySelector("#rail .thread"), { what: "the card to go" });
+  assert.equal(viewer.store.threadsAt(viewer.file("plan.md"))?.threads.length ?? 0, 0);
 });
 
 test("live reload shows the file's new text", { skip: chromeMissing }, async (t) => {

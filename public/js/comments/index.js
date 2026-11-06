@@ -5,7 +5,7 @@ import { state } from "../state.js";
 import { deleteMessage, deleteThread, discardBatch, sendBatch, sendReply, setThreadStatus, submitComment } from "./actions.js";
 import { threadAtPoint } from "./anchors.js";
 import { closeComposer, openComposer, updateCommentButton } from "./composer.js";
-import { activate, deactivate, jumpToThread, renderRail, scheduleLayout, updateRailMode } from "./rail.js";
+import { activate, deactivate, jumpToThread, openThreadMenu, renderRail, scheduleLayout, updateRailMode } from "./rail.js";
 import { closeVersionsMenu, toggleVersionsMenu } from "./topbar.js";
 
 export { forgetRanges, loadComments, resetComments } from "./model.js";
@@ -31,7 +31,10 @@ export function initComments() {
       root.classList.remove("drawer-open");
     } else if (action === "resolved" || action === "open") {
       setThreadStatus(Number(card.dataset.thread), action);
+    } else if (action === "thread-menu") {
+      openThreadMenu(event.target.closest("[data-action]"));
     } else if (action === "delete-thread") {
+      openThreadMenu(null);
       deleteThread(Number(card.dataset.thread));
     } else if (action === "delete-message") {
       deleteMessage(Number(card.dataset.thread), Number(event.target.closest("[data-message]").dataset.message));
@@ -90,6 +93,7 @@ export function initComments() {
   $("#version").addEventListener("click", toggleVersionsMenu);
   document.addEventListener("click", (event) => {
     if (!event.target.closest("#versions-menu, #version")) closeVersionsMenu();
+    if (!event.target.closest(".thread-more")) openThreadMenu(null);
   });
 
   $("#comments-btn").addEventListener("click", () => {

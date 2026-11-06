@@ -1,7 +1,7 @@
 /** What the human's comment controls send to the server. */
 import { $, postJson, toast } from "../dom.js";
 import { releaseReload, reloadDoc } from "../doc.js";
-import { state, threadById } from "../state.js";
+import { state } from "../state.js";
 import { closeComposer } from "./composer.js";
 import { loadComments } from "./model.js";
 import { activate } from "./rail.js";
@@ -38,11 +38,8 @@ export async function setThreadStatus(id, status) {
   }
 }
 
+/** Deletes a thread with no dialog: it is picked from the card's ⋯ menu, and picking it is the confirmation. */
 export async function deleteThread(id) {
-  const thread = threadById(id);
-  const replies = thread.messages.length - 1;
-  const what = replies ? `thread #${id} and its ${replies} repl${replies === 1 ? "y" : "ies"}` : `thread #${id}`;
-  if (!confirm(`Delete ${what}? This cannot be undone.`)) return;
   try {
     await postJson(`/api/comments/${id}/delete`, {});
     if (state.comments.active === id) state.comments.active = null;

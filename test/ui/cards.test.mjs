@@ -62,6 +62,31 @@ test("the open card shows every message and its controls", () => {
   assert.match(html, /data-action="resolved"/);
 });
 
+test("every sent, unresolved card resolves from its header, open or not", () => {
+  const head = (html) => html.match(/<header[\s\S]*?<\/header>/)[0];
+  assert.match(head(threadCard(thread(), { docPath: "plan.md" })), /data-action="resolved"/);
+  assert.match(head(threadCard(thread({ status: "suggested" }), { docPath: "plan.md" })), /data-action="resolved"/);
+  assert.doesNotMatch(threadCard(thread({ pending: true }), { expanded: true, docPath: "plan.md" }), /data-action="resolved"/);
+  assert.doesNotMatch(threadCard(thread({ status: "resolved" }), { expanded: true, docPath: "plan.md" }), /data-action="resolved"/);
+  assert.equal(threadCard(thread(), { expanded: true, docPath: "plan.md" }).match(/data-action="resolved"/g).length, 1);
+});
+
+test("a thread deletes from its card's menu, and only replies have their own ×", () => {
+  const t = thread({ messages: [message(), message()] });
+  const html = threadCard(t, { expanded: true, docPath: "plan.md" });
+  assert.match(html, /<span class="thread-menu" role="menu" hidden>.*data-action="delete-thread"/);
+  assert.equal(html.match(/data-action="delete-thread"/g).length, 1);
+  assert.equal(html.match(/data-action="delete-message"/g).length, 1);
+  assert.match(html, new RegExp(`data-message="${t.messages[1].id}"`));
+});
+
+test("a pending thread says Pending once, and a pending reply on a sent thread keeps its badge", () => {
+  const draft = thread({ pending: true, messages: [message({ pending: true })] });
+  assert.equal(threadCard(draft, { docPath: "plan.md" }).match(/>Pending<|>pending</gi).length, 1);
+  const sent = thread({ messages: [message(), message({ pending: true })] });
+  assert.match(threadCard(sent, { docPath: "plan.md" }), /class="badge badge-pending"/);
+});
+
 test("names and quotes are escaped", () => {
   const t = thread({ quote: "<img src=x>", messages: [message({ author: "<b>eve</b>" })] });
   const html = threadCard(t, { docPath: "plan.md" });

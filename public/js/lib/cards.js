@@ -29,30 +29,43 @@ function threadChips(t) {
   return chips.join("");
 }
 
-/** One message. Its delete button shows on open cards; on the first message it deletes the whole thread. */
-function messageItem(m, first) {
+/**
+ * One message. A reply's delete button shows on open cards; the first message
+ * has none, since deleting it is deleting the thread (the header's menu). A
+ * pending reply is badged, unless the whole thread is pending and its header
+ * already says so.
+ */
+function messageItem(m, first, threadPending) {
   const time = Date.parse(m.sentAt ?? m.createdAt);
   const session = m.session ? ` title="Session ${escapeHtml(m.session)}"` : "";
   const badge =
     (m.authorKind === "agent" ? `<span class="badge"${session}>agent</span>` : "") +
-    (m.pending ? '<span class="badge badge-pending" title="In your batch. Agents see it after you send.">pending</span>' : "");
-  const remove = first
-    ? '<button class="message-delete" type="button" data-action="delete-thread" title="Delete this thread permanently">×</button>'
-    : `<button class="message-delete" type="button" data-action="delete-message" data-message="${m.id}" title="Delete this message permanently">×</button>`;
+    (m.pending && !threadPending ? '<span class="badge badge-pending" title="In your batch. Agents see it after you send.">pending</span>' : "");
+  const remove = first ? "" : `<button class="message-delete" type="button" data-action="delete-message" data-message="${m.id}" title="Delete this message permanently">×</button>`;
   return `<li class="message" data-kind="${m.authorKind}">
     <div class="message-meta"><span class="author">${escapeHtml(m.author)}</span>${badge}<span class="when" title="${escapeHtml(new Date(time).toLocaleString())}">${ago(time)} · v${m.versionSeq}</span>${remove}</div>
     <div class="message-body">${m.bodyHtml}</div>
   </li>`;
 }
 
-/** The open card's reply box and actions. A pending thread is a draft, so it can only be replied to or deleted. */
+/** Resolve, in every card's header, so a thread resolves in one click without opening it. A pending thread is a draft, so it has none. */
+function resolveButton(t) {
+  if (t.pending || t.status === "resolved") return "";
+  return '<button class="thread-resolve" type="button" data-action="resolved" title="Resolve this thread">✓ Resolve</button>';
+}
+
+/** The ⋯ menu at the top right of every card. Picking Delete thread is the confirmation, so deleting takes two clicks without opening the card. */
+function threadMenu() {
+  return `<span class="thread-more"><button class="thread-more-btn" type="button" data-action="thread-menu" aria-haspopup="menu" aria-expanded="false" title="More"><svg class="icon icon-dots" aria-hidden="true"><use href="#i-dots"/></svg></button><span class="thread-menu" role="menu" hidden><button type="button" role="menuitem" data-action="delete-thread"><svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg>Delete thread</button></span></span>`;
+}
+
+/** The open card's reply box and actions. */
 function threadControls(t, batching) {
   const placeholder = t.status === "suggested" ? "Reply and reopen…" : "Reply…";
   const reopen = t.pending || t.status === "open" ? "" : '<button class="btn" type="button" data-action="open">Reopen</button>';
-  const resolve = t.pending || t.status === "resolved" ? "" : '<button class="btn btn-primary" type="button" data-action="resolved">Resolve</button>';
   return `<textarea class="reply" rows="1" placeholder="${placeholder}" aria-label="Reply"></textarea>
     <p class="key-hint">${keyHint(batching)}</p>
-    <div class="thread-actions"><button class="btn btn-danger" type="button" data-action="delete-thread" title="Delete this thread permanently">Delete</button><span class="spacer"></span>${reopen}${resolve}</div>`;
+    ${reopen ? `<div class="thread-actions">${reopen}</div>` : ""}`;
 }
 
 /** For an outdated thread: what its text became, and a link to the version it was made on. */
@@ -72,12 +85,12 @@ function nowReads(t, docPath) {
  */
 export function threadCard(t, { expanded = false, batching = false, docPath }) {
   const shown = expanded || t.messages.length <= 2 ? t.messages : [t.messages[0], t.messages.at(-1)];
-  const items = shown.map((m) => messageItem(m, m.id === t.messages[0].id));
+  const items = shown.map((m) => messageItem(m, m.id === t.messages[0].id, t.pending));
   const hidden = t.messages.length - shown.length;
   if (hidden) items.splice(1, 0, `<li class="message more">${hidden} more</li>`);
   const quote = t.quote ? `<blockquote class="thread-quote">${escapeHtml(t.quote)}</blockquote>` : "";
   return `<section class="thread${expanded ? " expanded" : ""}" data-thread="${t.id}" data-status="${t.status}" data-pending="${t.pending}" data-turn="${t.waitingOn ?? ""}">
-    <header class="thread-head"><span class="thread-id">#${t.id}</span>${threadChips(t)}</header>
+    <header class="thread-head"><span class="thread-tags"><span class="thread-id">#${t.id}</span>${threadChips(t)}</span><span class="thread-head-end">${resolveButton(t)}${threadMenu()}</span></header>
     ${quote}
     ${nowReads(t, docPath)}
     <ol class="messages">${items.join("")}</ol>

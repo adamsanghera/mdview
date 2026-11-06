@@ -122,6 +122,20 @@ export function activate(id, { scroll = false } = {}) {
   if ($("#rail").classList.contains("listing")) $(`#rail .thread[data-thread="${id}"]`)?.scrollIntoView({ block: "nearest" });
 }
 
+/** Opens a card's ⋯ menu, closing any other, or closes them all with null. Returns whether a menu was open before. */
+export function openThreadMenu(button) {
+  let wasOpen = false;
+  for (const other of document.querySelectorAll('#rail [data-action="thread-menu"]')) {
+    const expanded = other.getAttribute("aria-expanded") === "true";
+    const open = other === button && !expanded;
+    wasOpen ||= expanded;
+    other.setAttribute("aria-expanded", String(open));
+    other.nextElementSibling.hidden = !open;
+    other.closest(".thread").classList.toggle("menu-open", open);
+  }
+  return wasOpen;
+}
+
 export function deactivate() {
   if (state.comments.active === null) return false;
   state.comments.active = null;

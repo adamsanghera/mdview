@@ -1,7 +1,7 @@
 /** Keyboard shortcuts: ⌘⇧M comments, / filters files, \ toggles the file list, Escape closes things. */
 import { $, root } from "./dom.js";
 import { closeComposer, openComposer } from "./comments/composer.js";
-import { deactivate } from "./comments/rail.js";
+import { deactivate, openThreadMenu } from "./comments/rail.js";
 import { closeVersionsMenu } from "./comments/topbar.js";
 import { navigate } from "./nav.js";
 import { renderTree, showSidebar, toggleSidebar } from "./sidebar.js";
@@ -14,7 +14,7 @@ export function watchShortcuts() {
       event.preventDefault();
       openComposer();
     } else if (event.key === "Escape" && !typing) {
-      if (!closeComposer() && !closeVersionsMenu() && !deactivate()) root.classList.remove("drawer-open");
+      if (!closeComposer() && !openThreadMenu(null) && !closeVersionsMenu() && !deactivate()) root.classList.remove("drawer-open");
     } else if (event.key === "/" && !typing) {
       event.preventDefault();
       showSidebar();
