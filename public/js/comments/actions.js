@@ -29,8 +29,8 @@ export async function discardBatch() {
 
 export async function setThreadStatus(id, status) {
   try {
-    // A reopen's note joins an open batch, so the agent hears about it with the rest.
-    await postJson(`/api/comments/${id}/status`, { status, pending: state.comments.pendingCount > 0 });
+    // A reopen's note joins the batch while batching, so the agent hears about it with the rest.
+    await postJson(`/api/comments/${id}/status`, { status, pending: status === "open" && state.comments.batch });
     if (status === "resolved" && state.comments.active === id) state.comments.active = null;
     await loadComments();
   } catch (err) {
@@ -60,36 +60,36 @@ export async function deleteMessage(threadId, messageId) {
   }
 }
 
-export async function sendReply(input, mode) {
+/** Adds a reply: into the batch while batching, else sent at once. */
+export async function sendReply(input) {
   const id = Number(input.closest(".thread").dataset.thread);
   const body = input.value.trim();
   if (!body) return;
   input.disabled = true;
   try {
-    await postJson(`/api/comments/${id}/messages`, { body, pending: mode !== "now" });
+    await postJson(`/api/comments/${id}/messages`, { body, pending: state.comments.batch });
     state.comments.replyText.delete(id);
-    if (mode === "send") await sendBatch();
-    else await loadComments();
+    await loadComments();
   } catch (err) {
     input.disabled = false;
     toast(err.message);
   }
 }
 
-export async function submitComment(mode) {
+/** Starts the thread the composer holds: into the batch while batching, else sent at once. */
+export async function submitComment() {
   const comments = state.comments;
   const input = $("#composer-text");
   const body = input.value.trim();
   if (!body || !comments.selection) return;
   const { blockIndex, quote, start, sha } = comments.selection;
   try {
-    const { id } = await postJson("/api/comments", { path: state.doc.path, sha, blockIndex, quote, start, body, pending: mode !== "now" });
+    const { id } = await postJson("/api/comments", { path: state.doc.path, sha, blockIndex, quote, start, body, pending: comments.batch });
     comments.composerText = "";
     // The new thread is drawn on the text it was made on before a reload that waited moves the doc on.
     closeComposer({ release: false });
     getSelection().removeAllRanges();
-    if (mode === "send") await sendBatch();
-    else await loadComments();
+    await loadComments();
     activate(id);
     releaseReload();
   } catch (err) {

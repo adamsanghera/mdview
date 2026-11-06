@@ -29,27 +29,37 @@ export async function openComposer(page) {
   await page.waitFor(() => !document.querySelector("#composer").hidden, { what: "the composer to open" });
 }
 
-/** Types `body` into a textarea and presses Enter, with ⌥ when `alt`. */
-export async function typeAndEnter(page, selector, body, { alt = false } = {}) {
+/** Types `body` into a textarea and presses ⌘Enter, which submits it. */
+export async function typeAndSubmit(page, selector, body) {
   await page.eval(
-    (sel, text, altKey) => {
+    (sel, text) => {
       const input = document.querySelector(sel);
       input.focus();
       input.value = text;
       input.dispatchEvent(new Event("input", { bubbles: true }));
-      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", altKey, bubbles: true, cancelable: true }));
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", metaKey: true, bubbles: true, cancelable: true }));
     },
     selector,
     body,
-    alt,
   );
 }
 
-/** Comments on `quote`: selects it, opens the composer, and submits `body`. Batches it when `batch`. */
+/** Picks sending now or batching from the menu of the first submit button inside `scope`. The choice sticks for the page. */
+export async function chooseBatching(page, scope, batch) {
+  await click(page, `${scope} [data-batch-menu]`);
+  await click(page, `${scope} [data-batch-choice="${batch ? "on" : "off"}"]`);
+}
+
+/**
+ * Comments on `quote`: selects it, opens the composer, and submits `body`,
+ * into the batch when `batch`. It picks the mode every time, since the mode
+ * sticks for the page.
+ */
 export async function comment(page, quote, body, { batch = false } = {}) {
   await select(page, quote);
   await openComposer(page);
-  await typeAndEnter(page, "#composer-text", body, { alt: batch });
+  await chooseBatching(page, "#composer", batch);
+  await typeAndSubmit(page, "#composer-text", body);
   await page.waitFor(() => document.querySelector("#composer").hidden, { what: "the composer to close" });
 }
 

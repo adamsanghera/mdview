@@ -1,23 +1,29 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { keyHint, submitMode } from "../../public/js/lib/keys.js";
+import { isSubmitKey, submitButton } from "../../public/js/lib/keys.js";
 
-const keys = (mods = {}) => ({ altKey: false, metaKey: false, ctrlKey: false, ...mods });
+const key = (mods = {}) => ({ key: "Enter", shiftKey: false, metaKey: false, ctrlKey: false, altKey: false, isComposing: false, ...mods });
 
-test("with no batch open, Enter sends and ⌥Enter starts a batch", () => {
-  assert.equal(submitMode(keys(), false), "now");
-  assert.equal(submitMode(keys({ altKey: true }), false), "batch");
-  assert.equal(submitMode(keys({ metaKey: true }), false), "now");
-  assert.equal(submitMode(keys({ ctrlKey: true }), false), "now");
+test("Enter is a new line; Shift+Enter and ⌘ or Ctrl+Enter submit", () => {
+  assert.equal(isSubmitKey(key()), false);
+  assert.equal(isSubmitKey(key({ shiftKey: true })), true);
+  assert.equal(isSubmitKey(key({ metaKey: true })), true);
+  assert.equal(isSubmitKey(key({ ctrlKey: true })), true);
 });
 
-test("with a batch open, Enter adds to it, ⌘Enter sends it, and ⌥Enter sends just this", () => {
-  assert.equal(submitMode(keys(), true), "batch");
-  assert.equal(submitMode(keys({ metaKey: true }), true), "send");
-  assert.equal(submitMode(keys({ altKey: true }), true), "now");
+test("no submit key fires while an IME is composing, with ⌥, or on another key", () => {
+  assert.equal(isSubmitKey(key({ metaKey: true, isComposing: true })), false);
+  assert.equal(isSubmitKey(key({ metaKey: true, altKey: true })), false);
+  assert.equal(isSubmitKey(key({ key: "a", metaKey: true })), false);
 });
 
-test("the hint names the keys for the current mode", () => {
-  assert.match(keyHint(false), /^Enter sends/);
-  assert.match(keyHint(true), /^Enter adds to your batch/);
+test("the submit button says what it does, and its menu checks the current mode", () => {
+  const checked = (html) => [...html.matchAll(/aria-checked="true" data-batch-choice="(\w+)"/g)].map(([, choice]) => choice);
+  const now = submitButton(false, { now: "Comment", id: "composer-submit" });
+  assert.match(now, /id="composer-submit">Comment</);
+  assert.deepEqual(checked(now), ["off"]);
+  const batch = submitButton(true, { now: "Reply", primary: false });
+  assert.match(batch, /data-label-now="Reply">Add to batch</);
+  assert.doesNotMatch(batch, /btn-primary/);
+  assert.deepEqual(checked(batch), ["on"]);
 });

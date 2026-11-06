@@ -1,6 +1,6 @@
 /** The comment rail's HTML: thread cards, the rail's header, and the grouped list view. */
 import { ago, escapeHtml, truncate } from "./format.js";
-import { keyHint } from "./keys.js";
+import { submitButton } from "./keys.js";
 import { encodePath } from "./paths.js";
 
 const NOW_READS_PREVIEW_CHARS = 140;
@@ -64,8 +64,7 @@ function threadControls(t, batching) {
   const placeholder = t.status === "suggested" ? "Reply and reopen…" : "Reply…";
   const reopen = t.pending || t.status === "open" ? "" : '<button class="btn" type="button" data-action="open">Reopen</button>';
   return `<textarea class="reply" rows="1" placeholder="${placeholder}" aria-label="Reply"></textarea>
-    <p class="key-hint">${keyHint(batching)}</p>
-    ${reopen ? `<div class="thread-actions">${reopen}</div>` : ""}`;
+    <div class="thread-actions">${reopen}${submitButton(batching, { now: "Reply", primary: false })}</div>`;
 }
 
 /** For an outdated thread: what its text became, and a link to the version it was made on. */
@@ -80,8 +79,8 @@ function nowReads(t, docPath) {
 
 /**
  * A thread card. Collapsed cards show the first and last messages; the open
- * (`expanded`) card shows all of them and its controls. `batching` says a
- * batch is open, and `docPath` is the doc's root-relative path.
+ * (`expanded`) card shows all of them and its controls. `batching` says
+ * replies go into the batch, and `docPath` is the doc's root-relative path.
  */
 export function threadCard(t, { expanded = false, batching = false, docPath }) {
   const shown = expanded || t.messages.length <= 2 ? t.messages : [t.messages[0], t.messages.at(-1)];

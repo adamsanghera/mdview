@@ -15,8 +15,33 @@
 .thread textarea:focus,
 .composer textarea:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
 
-.thread-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px; }
-.key-hint { margin: 4px 2px 0; font-size: var(--text-xs); color: var(--text-faint); }
+.thread-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 8px; }
+#composer-actions { display: inline-flex; }
+
+/* A submit button whose chevron opens a menu choosing between sending now and adding to the batch. */
+.split-btn { position: relative; display: inline-flex; }
+.split-main { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.split-chevron { display: inline-grid; place-items: center; padding: 0 5px; border-left-width: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.split-chevron.btn-primary { box-shadow: inset 1px 0 0 color-mix(in srgb, var(--on-accent) 35%, transparent); }
+.split-chevron .icon { width: 12px; height: 12px; transform: rotate(90deg); }
+.split-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 40;
+  width: 270px;
+  padding: 4px 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  box-shadow: var(--shadow-md);
+}
+.split-menu[hidden] { display: none; }
+.split-choice { position: relative; display: grid; gap: 2px; width: 100%; padding: 7px 12px 7px 30px; text-align: left; }
+.split-choice:hover { background: var(--hover); }
+.split-choice strong { font-size: var(--text-md); font-weight: 500; color: var(--text); }
+.split-choice span { font-size: var(--text-sm); color: var(--text-soft); }
+.split-choice[aria-checked="true"]::before { content: "✓"; position: absolute; top: 7px; left: 11px; font-weight: 600; color: var(--accent); }
 
 .batch { display: inline-flex; align-items: center; gap: 6px; }
 .batch-count { font-size: var(--text-sm); color: var(--text-soft); white-space: nowrap; }
@@ -33,4 +58,3 @@
 .btn-primary:hover { background: color-mix(in srgb, var(--accent) 88%, black); }
 .btn-danger { color: var(--danger); }
 .btn-danger:hover { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
-.thread-actions .spacer { flex: 1; }

@@ -1,7 +1,7 @@
 /** The floating Comment button beside a selection, and the composer it opens. */
 import { releaseReload } from "../doc.js";
 import { $, autosize, toast } from "../dom.js";
-import { keyHint } from "../lib/keys.js";
+import { submitButton } from "../lib/keys.js";
 import { state } from "../state.js";
 import { anchorFromRange, blockAt } from "./anchors.js";
 import { paintMarks } from "./marks.js";
@@ -43,10 +43,7 @@ export function openComposer() {
   composer.style.left = `${Math.max(8, Math.min(rect.left, innerWidth - composer.offsetWidth - 8)) + scrollX}px`;
   composer.style.top = `${rect.bottom + scrollY + 8}px`;
   $("#comment-btn").hidden = true;
-  const batching = comments.pendingCount > 0;
-  $("#composer-submit").textContent = batching ? "Add to batch" : "Comment";
-  $("#composer-alt").textContent = batching ? "Send just this" : "Start batch";
-  $("#composer-hint").textContent = keyHint(batching);
+  $("#composer-actions").innerHTML = submitButton(comments.batch, { now: "Comment", id: "composer-submit" });
   const input = $("#composer-text");
   input.value = comments.composerText;
   autosize(input);

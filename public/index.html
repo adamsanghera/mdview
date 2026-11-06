@@ -73,13 +73,10 @@
   </button>
   <div class="composer" id="composer" role="dialog" aria-label="New comment" hidden>
     <blockquote class="thread-quote" id="composer-quote"></blockquote>
-    <textarea id="composer-text" rows="2" placeholder="Comment for the agent…"></textarea>
-    <p class="key-hint" id="composer-hint"></p>
+    <textarea id="composer-text" rows="2" placeholder="Comment for the agent…" aria-label="Comment"></textarea>
     <div class="thread-actions">
       <button class="btn" type="button" id="composer-cancel">Cancel</button>
-      <span class="spacer"></span>
-      <button class="btn" type="button" id="composer-alt">Start batch</button>
-      <button class="btn btn-primary" type="button" id="composer-submit">Comment</button>
+      <span id="composer-actions"></span>
     </div>
   </div>
   <nav class="versions-menu" id="versions-menu" aria-label="Versions" hidden></nav>

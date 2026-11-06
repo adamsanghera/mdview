@@ -60,15 +60,17 @@ mdview comments suggest-resolve 12 -m "Moved it under Rollout."
 mdview comments wait docs/                             # returns the moment anything there waits on the agent
 ```
 
-Agents reply and suggest that a thread is resolved. Only you resolve or reopen one, in the viewer, or with `--human` in a terminal. A suggested thread turns green, and replying to it reopens it. A thread the agent answered shows **Your turn** with a blue edge.
+Agents reply and suggest that a thread is resolved. Only you resolve or reopen one, in the viewer, or with `--human` in a terminal. **✓ Resolve** sits in every card's header, so a thread resolves in one click without opening it. A suggested thread turns green, and replying to it reopens it. A thread the agent answered shows **Your turn** with a blue edge.
+
+In a comment or reply box, Enter starts a new line, and ⇧Enter or ⌘Enter submits. Clicking a card opens it in place, with its reply box focused, and scrolls its text level with it. The switch at the top of the margin flips between cards **Beside text** and a **List** of every thread, grouped by whose turn it is. Once a doc has had a comment, the margin stays when you resolve the last one, so the text does not move sideways.
 
 While you write a comment, live reload waits, so the text never moves under it (the dot turns amber), and the comment anchors to the version you selected in even if an agent edited the file meanwhile.
 
-To keep an agent from reacting to each comment in turn, batch them. **Start batch** (or ⌥Enter) holds a comment as pending: you see it with a Pending chip, and agents see nothing. Once a batch is open, Enter adds to it and ⌘Enter sends it. **Send** in the header publishes everything at once, so the agent wakes once.
+To keep an agent from reacting to each comment in turn, batch them. The chevron beside **Comment** or **Reply** switches to **Add to batch**, which holds what you write as pending: you see it with a Pending chip and a gray edge, and agents see nothing. The choice sticks, across comments and visits, until you switch back. No key sends the batch: **Send** in the header publishes everything at once, so the agent wakes once.
 
 `wait` returns within milliseconds of a comment while a viewer is open, because each viewer streams a doorbell event the moment the store changes and `wait` listens to it. With no viewer, `wait` checks the store itself every 100 ms. An agent should answer every thread waiting on it before it waits again, since anything left unanswered returns at once.
 
-Only you can delete, and only in the viewer: **Delete** on an open card removes the whole thread, and the × beside a reply removes that reply. Deleting is permanent. When a doc's last thread goes, mdview drops its stored versions too. [`skills/mdview-comments/SKILL.md`](skills/mdview-comments/SKILL.md) teaches an agent this loop. Copy it into your agent's skills folder.
+Only you can delete, and only in the viewer: **Delete thread** in a card's ⋯ menu removes the whole thread (picking it is the confirmation), and the × beside a reply removes that reply. Deleting is permanent. When a doc's last thread goes, mdview drops its stored versions too. [`skills/mdview-comments/SKILL.md`](skills/mdview-comments/SKILL.md) teaches an agent this loop. Copy it into your agent's skills folder.
 
 mdview never writes your docs. Comments live in `~/.mdview/peanut.sqlite3` (set `MDVIEW_HOME` to move it), kept by [peanut](../peanut), the comment library mdview shares with diffview, and keyed by each file's real path. Once a doc has a comment, mdview keeps a copy of each version of it that it sees, and each comment remembers the version it was made on:
 

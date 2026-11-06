@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { chromeMissing, sharedChrome } from "../helpers/browser.mjs";
 import { AGENT, HUMAN, startViewer } from "../helpers/viewer.mjs";
-import { click, comment, highlighted, select } from "../helpers/viewer-page.mjs";
+import { chooseBatching, click, comment, highlighted, openComposer, select } from "../helpers/viewer-page.mjs";
 
 const row = (cells) => `| ${cells.join(" | ")} |`;
 const table = (head, body) => [row(head), row(head.map(() => "---")), ...body.map(row)].join("\n");
@@ -90,6 +90,34 @@ test("a batched comment stays hidden from agents until the batch is sent", { ski
   await page.waitFor(() => document.querySelector("#batch").hidden, { what: "the batch to send" });
   assert.equal(viewer.store.threadsAt(viewer.file("plan.md")).threads.length, 1);
   await page.waitFor(() => !document.querySelector("#rail .chip-pending"), { what: "the pending chip to go" });
+});
+
+test("Enter is a new line, and batching stays on for the next comment and reply until switched off", { skip: chromeMissing }, async (t) => {
+  const { page, viewer } = await setup(t);
+  await select(page, "Every part of the helper");
+  await openComposer(page);
+  await page.eval(() => {
+    const input = document.querySelector("#composer-text");
+    input.value = "Which helper?";
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+  });
+  assert.equal(await page.eval(() => document.querySelector("#composer").hidden), false, "plain Enter does not submit");
+
+  await chooseBatching(page, "#composer", true);
+  await click(page, "#composer-submit");
+  await page.waitFor(() => document.querySelector("#batch-count").textContent === "1 pending", { what: "the comment to join the batch" });
+
+  await select(page, "the agent writes the store");
+  await openComposer(page);
+  assert.equal(await page.eval(() => document.querySelector("#composer-submit").textContent), "Add to batch");
+  await page.eval(() => document.querySelector("#composer-cancel").click());
+  await click(page, "#rail .thread .message-body");
+  assert.equal(await page.eval(() => document.querySelector("#rail .thread.expanded [data-submit]").textContent), "Add to batch");
+  assert.equal(viewer.store.threadsAt(viewer.file("plan.md"))?.threads.length ?? 0, 0);
+
+  await chooseBatching(page, "#rail .thread.expanded", false);
+  await click(page, '#rail [data-mode="list"]');
+  assert.equal(await page.eval(() => document.querySelector("#rail .thread.expanded [data-submit]").textContent), "Reply", "a pending draft does not turn batching back on");
 });
 
 test("a closed card resolves in one click, which clears its highlight", { skip: chromeMissing }, async (t) => {

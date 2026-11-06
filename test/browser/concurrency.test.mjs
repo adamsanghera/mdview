@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { chromeMissing, sharedChrome } from "../helpers/browser.mjs";
 import { AGENT, HUMAN, startViewer } from "../helpers/viewer.mjs";
-import { click, highlighted, openComposer, select, typeAndEnter } from "../helpers/viewer-page.mjs";
+import { click, highlighted, openComposer, select, typeAndSubmit } from "../helpers/viewer-page.mjs";
 
 const PLAN = `# Plan
 
@@ -51,7 +51,7 @@ test("a comment written while an agent edits the doc anchors to the text it was 
     { what: "the viewer to notice the edit" },
     "A new paragraph the agent added.",
   );
-  await typeAndEnter(page, "#composer-text", "Which store?");
+  await typeAndSubmit(page, "#composer-text", "Which store?");
   await page.waitFor(showsEdit, { what: "the edit to show" });
   await page.waitFor(() => CSS.highlights.get("mdview-comment-open")?.size === 2, { what: "both highlights" });
 

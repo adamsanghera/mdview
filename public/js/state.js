@@ -32,6 +32,8 @@ export const state = {
     selection: null,
     composerText: "",
     pendingCount: 0,
+    /** Whether new comments and replies go into the batch, as the submit buttons' menus set it. */
+    batch: localStorage.getItem("mdview.batch") === "on",
   },
 };
 

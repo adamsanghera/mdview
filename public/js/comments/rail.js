@@ -43,7 +43,7 @@ export function onLayoutChange() {
 }
 
 function cardOptions(t) {
-  return { expanded: t.id === state.comments.active, batching: state.comments.pendingCount > 0, docPath: state.doc?.path ?? "" };
+  return { expanded: t.id === state.comments.active, batching: state.comments.batch, docPath: state.doc?.path ?? "" };
 }
 
 export function renderRail() {
@@ -57,7 +57,7 @@ export function renderRail() {
   rail.classList.toggle("listing", listing);
   rail.style.minHeight = "";
   const body = listing
-    ? railList(comments.threads, { active: comments.active, batching: comments.pendingCount > 0, docPath: state.doc?.path ?? "" })
+    ? railList(comments.threads, { active: comments.active, batching: comments.batch, docPath: state.doc?.path ?? "" })
     : comments.threads
         .filter((t) => comments.ranges.has(t.id))
         .map((t) => threadCard(t, cardOptions(t)))
@@ -146,21 +146,19 @@ export function deactivate() {
 }
 
 /**
- * Opens a card the reader clicked. In the margin, the open card sits level
- * with its text, which can be a screen away from where stacking had put it,
- * so the page scrolls by as much: the card stays under the pointer and its
- * text comes to it.
+ * Opens a card the reader clicked, with its reply box focused. In the margin,
+ * the open card sits level with its text, which can be a screen away from
+ * where stacking had put it, so the page scrolls by as much: the card stays
+ * under the pointer and its text comes to it.
  */
 export function openClickedCard(card) {
   const id = Number(card.dataset.thread);
-  if ($("#rail").classList.contains("listing")) {
-    activate(id, { scroll: true });
-    return;
-  }
+  const listing = $("#rail").classList.contains("listing");
   const clickedAt = card.getBoundingClientRect().top;
-  activate(id);
+  activate(id, { scroll: listing });
   const opened = $(`#rail .thread[data-thread="${id}"]`);
-  if (opened) scrollBy({ top: opened.getBoundingClientRect().top - clickedAt, behavior: "instant" });
+  if (opened && !listing) scrollBy({ top: opened.getBoundingClientRect().top - clickedAt, behavior: "instant" });
+  opened?.querySelector("textarea.reply")?.focus({ preventScroll: true });
 }
 
 /** Jumps straight to a thread's text, with no scroll animation, and opens the thread. */

@@ -1,9 +1,10 @@
 /** Wires the comment UI's events to the modules that handle them. */
 import { $, autosize, root } from "../dom.js";
-import { submitMode } from "../lib/keys.js";
+import { isSubmitKey } from "../lib/keys.js";
 import { state } from "../state.js";
 import { deleteMessage, deleteThread, discardBatch, sendBatch, sendReply, setThreadStatus, submitComment } from "./actions.js";
 import { threadAtPoint } from "./anchors.js";
+import { openBatchMenu, setBatching } from "./batch.js";
 import { closeComposer, openComposer, updateCommentButton } from "./composer.js";
 import { activate, deactivate, jumpToThread, openClickedCard, openThreadMenu, renderRail, scheduleLayout, updateRailMode } from "./rail.js";
 import { closeVersionsMenu, toggleVersionsMenu } from "./topbar.js";
@@ -47,9 +48,9 @@ export function initComments() {
   rail.addEventListener("keydown", (event) => {
     const input = event.target.closest("textarea.reply");
     if (!input) return;
-    if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+    if (isSubmitKey(event)) {
       event.preventDefault();
-      sendReply(input, submitMode(event, state.comments.pendingCount > 0));
+      sendReply(input);
     } else if (event.key === "Escape") {
       input.blur();
       deactivate();
@@ -73,16 +74,14 @@ export function initComments() {
   const commentButton = $("#comment-btn");
   commentButton.addEventListener("mousedown", (event) => event.preventDefault());
   commentButton.addEventListener("click", openComposer);
-  $("#composer-submit").addEventListener("click", () => submitComment(state.comments.pendingCount ? "batch" : "now"));
-  $("#composer-alt").addEventListener("click", () => submitComment(state.comments.pendingCount ? "now" : "batch"));
   $("#composer-cancel").addEventListener("click", () => {
     state.comments.composerText = "";
     closeComposer();
   });
   $("#composer-text").addEventListener("keydown", (event) => {
-    if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+    if (isSubmitKey(event)) {
       event.preventDefault();
-      submitComment(submitMode(event, state.comments.pendingCount > 0));
+      submitComment();
     } else if (event.key === "Escape") {
       state.comments.composerText = "";
       closeComposer();
@@ -93,7 +92,15 @@ export function initComments() {
   $("#batch-send").addEventListener("click", sendBatch);
   $("#batch-discard").addEventListener("click", discardBatch);
   $("#version").addEventListener("click", toggleVersionsMenu);
+  // Submit buttons and their batch menus, in the composer and in every open card.
   document.addEventListener("click", (event) => {
+    const submit = event.target.closest("[data-submit]");
+    const chevron = event.target.closest("[data-batch-menu]");
+    const choice = event.target.closest("[data-batch-choice]");
+    if (choice) setBatching(choice.dataset.batchChoice === "on");
+    openBatchMenu(chevron);
+    if (submit?.closest("#composer")) submitComment();
+    else if (submit) sendReply(submit.closest(".thread").querySelector("textarea.reply"));
     if (!event.target.closest("#versions-menu, #version")) closeVersionsMenu();
     if (!event.target.closest(".thread-more")) openThreadMenu(null);
   });
