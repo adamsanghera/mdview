@@ -2,6 +2,7 @@
 import { $, copyText, getJson, openTogglesAround, root } from "./dom.js";
 import { ago, escapeHtml } from "./lib/format.js";
 import { encodePath } from "./lib/paths.js";
+import { renderDiagrams } from "./mermaid.js";
 import { scheduleScrollUpdate, updateScroll } from "./scroll.js";
 import { expandAncestors, refreshTree, renderTree, revealActiveFile } from "./sidebar.js";
 import { state } from "./state.js";
@@ -52,6 +53,7 @@ function enhance(article) {
   for (const img of article.querySelectorAll("img")) {
     img.addEventListener("click", () => window.open(img.src, "_blank", "noopener"));
   }
+  renderDiagrams(article);
 }
 
 function renderToc(toc) {
@@ -134,10 +136,10 @@ export function watchToggles() {
   article.addEventListener("click", (event) => {
     if (event.target.closest("summary") && !getSelection().isCollapsed) event.preventDefault();
   });
-  // A closed toggle's content does not print.
+  // A closed toggle's content does not print. A diagram's source stays closed, since the diagram prints.
   let opened = [];
   addEventListener("beforeprint", () => {
-    opened = [...document.querySelectorAll("#doc details:not(.frontmatter, [open])")];
+    opened = [...document.querySelectorAll("#doc details:not(.frontmatter, .mermaid-source, [open])")];
     for (const toggle of opened) toggle.open = true;
   });
   addEventListener("afterprint", () => {
