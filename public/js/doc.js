@@ -2,7 +2,7 @@
 import { $, copyText, getJson, openTogglesAround, root } from "./dom.js";
 import { ago, escapeHtml } from "./lib/format.js";
 import { encodePath } from "./lib/paths.js";
-import { renderDiagrams } from "./mermaid.js";
+import { drawDiagrams, prepareDiagrams } from "./mermaid.js";
 import { scheduleScrollUpdate, updateScroll } from "./scroll.js";
 import { expandAncestors, refreshTree, renderTree, revealActiveFile } from "./sidebar.js";
 import { state } from "./state.js";
@@ -53,7 +53,6 @@ function enhance(article) {
   for (const img of article.querySelectorAll("img")) {
     img.addEventListener("click", () => window.open(img.src, "_blank", "noopener"));
   }
-  renderDiagrams(article);
 }
 
 function renderToc(toc) {
@@ -136,7 +135,7 @@ export function watchToggles() {
   article.addEventListener("click", (event) => {
     if (event.target.closest("summary") && !getSelection().isCollapsed) event.preventDefault();
   });
-  // A closed toggle's content does not print. A diagram's source stays closed, since the diagram prints.
+  // A closed toggle's content does not print.
   let opened = [];
   addEventListener("beforeprint", () => {
     opened = [...document.querySelectorAll("#doc details:not(.frontmatter, .mermaid-source, [open])")];
@@ -181,6 +180,7 @@ export async function loadDoc(rel, { keepScroll = false, hash = location.hash, v
   const opened = sameDoc ? new Set(togglesByKey(article).filter((t) => t.toggle.open).map((t) => t.key)) : new Set();
   article.innerHTML =
     (doc.old ? versionBanner(doc) : "") + (doc.frontMatter ? renderFrontMatter(doc.frontMatter) : "") + doc.html;
+  prepareDiagrams(article);
   for (const { toggle, key } of togglesByKey(article)) if (opened.has(key)) toggle.open = true;
   docHooks.replaced();
   enhance(article);
@@ -201,6 +201,7 @@ export async function loadDoc(rel, { keepScroll = false, hash = location.hash, v
   else window.scrollTo(0, 0);
   updateScroll();
   docHooks.loaded();
+  drawDiagrams(article);
 }
 
 function setReloadWaiting(waiting) {

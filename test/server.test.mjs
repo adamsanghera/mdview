@@ -134,6 +134,14 @@ test("the viewer page may run scripts only from /static/js/", async () => {
   assert.doesNotMatch(policy, /unsafe-eval|script-src[^;]*'unsafe-inline'/);
 });
 
+test("the diagram library is served from under /static/js/, where the policy allows it", async () => {
+  const res = await get("/static/js/vendor/mermaid.min.js");
+  assert.equal(res.status, 200);
+  assert.equal(res.headers["content-type"], "text/javascript; charset=utf-8");
+  assert.match(res.body, /mermaid/);
+  assert.equal((await get("/static/js/vendor/other.js")).status, 404);
+});
+
 test("files from the root open sandboxed, except PDFs", async () => {
   await fs.writeFile(path.join(dir, "notes", "page.html"), "<script>parent.postMessage('hi', '*')</script>");
   await fs.writeFile(path.join(dir, "notes", "paper.pdf"), "%PDF-1.4");

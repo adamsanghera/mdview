@@ -51,7 +51,7 @@ async function init() {
   addEventListener("resize", onLayoutChange);
   addEventListener("resize", scheduleTableLayout);
   watchToggles();
-  watchDiagramTheme($("#doc"));
+  watchDiagramTheme();
   watchNavigation();
   watchShortcuts();
   setInterval(renderMeta, 30_000);

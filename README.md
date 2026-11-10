@@ -3,7 +3,7 @@
 A local Markdown reader. Point it at a file or a folder, and it opens a browser tab with:
 
 - GitHub-flavored rendering: tables, task lists, footnotes and syntax-highlighted code
-- ` ```mermaid ` fences drawn as diagrams, as GitHub does, with the source a click away
+- ` ```mermaid ` blocks drawn as diagrams, in the page's theme, with their source folded below each
 - Notion-style toggle lists: a bullet that starts with `> ` folds away the rest of its item until you open it (example below)
 - a file sidebar you can filter, and an "On this page" outline that follows your scroll
 - relative links between documents that open in the viewer, with images served alongside
@@ -82,7 +82,7 @@ The version chip in the header (`v7`) lists every stored version. Renaming or mo
 
 ## Safety
 
-mdview listens on 127.0.0.1 only, refuses requests that name any other host (which blocks DNS rebinding), and serves only files under the root. Comment writes must come from mdview's own page: they need its Origin and a JSON body, which other websites cannot send. Docs render with their raw HTML, but the page's Content-Security-Policy runs only mdview's own scripts, so a doc cannot act as you, and files opened from the root are sandboxed. Raw HTML can still load images from anywhere, so point mdview at files you trust. Mermaid, which draws diagrams, is served from `node_modules` under `/static/js/vendor/`, so it runs under the same policy, and it loads only on a doc with a diagram. It runs at its strict security level, which escapes HTML in labels and turns off click handlers.
+mdview listens on 127.0.0.1 only, refuses requests that name any other host (which blocks DNS rebinding), and serves only files under the root. Comment writes must come from mdview's own page: they need its Origin and a JSON body, which other websites cannot send. Docs render with their raw HTML, but the page's Content-Security-Policy runs only mdview's own scripts, so a doc cannot act as you, and files opened from the root are sandboxed. Raw HTML can still load images from anywhere, so point mdview at files you trust.
 
 ## Development
 

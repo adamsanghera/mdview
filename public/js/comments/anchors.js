@@ -3,7 +3,7 @@ import { $, closedTogglesAround } from "../dom.js";
 import { findQuote } from "../lib/quote.js";
 import { state } from "../state.js";
 
-const DECORATIONS = ".heading-anchor, .code-copy, .mermaid-svg, .mermaid-source > summary";
+const DECORATIONS = ".heading-anchor, .code-copy";
 
 export function blockAt(node) {
   const el = node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement;

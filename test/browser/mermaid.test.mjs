@@ -3,91 +3,140 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { chromeMissing, sharedChrome } from "../helpers/browser.mjs";
 import { HUMAN, startViewer } from "../helpers/viewer.mjs";
-import { click, highlighted } from "../helpers/viewer-page.mjs";
+import { click } from "../helpers/viewer-page.mjs";
 
-const FLOW = `# Flow
+// Shaped like a spec: front matter, prose, and the diagram kinds specs reach for.
+const SPEC = `---
+status: draft
+---
+# Spec-driven bot loop
 
-Before the diagram.
-
-\`\`\`mermaid
-flowchart LR
-  Writer --> Store
-  Store --> Viewer
-\`\`\`
+## Loop
 
 \`\`\`mermaid
-this is not a diagram
+flowchart TD
+  spec[Spec in the vault] --> bot{Bot picks it up}
+  bot -->|plan| pr[Opens a PR]
+  pr --> review[Human reviews]
+  review -->|comments| bot
 \`\`\`
 
-\`\`\`js
-const notADiagram = true;
+## Handoff
+
+\`\`\`mermaid
+sequenceDiagram
+  participant H as Human
+  participant B as Bot
+  H->>B: Approves the spec
+  B-->>H: Draft PR
+\`\`\`
+
+## States
+
+\`\`\`mermaid
+stateDiagram-v2
+  [*] --> Draft
+  Draft --> Review
+  Review --> Done
+\`\`\`
+
+The end.
+`;
+
+const BROKEN = `# Broken
+
+\`\`\`mermaid
+flowchart TD
+  a --> (((
 \`\`\`
 `;
 
 const chrome = sharedChrome();
 
-async function setup(t, { before } = {}) {
-  const viewer = await startViewer({ files: { "flow.md": FLOW }, initial: "flow.md", port: 47460 });
+/** A viewer on `files` and a tab that records every Content-Security-Policy violation from its first script on. */
+async function setup(t, files, initial) {
+  const viewer = await startViewer({ files, initial, port: 47460 });
   t.after(() => viewer.close());
-  await before?.(viewer);
   const page = await (await chrome()).open("about:blank");
   t.after(() => page.close());
-  t.after(() => assert.deepEqual(page.errors, [], "the page threw"));
-  // Records anything the page's Content-Security-Policy blocks, from before the viewer's first script runs.
   await page.send("Page.addScriptToEvaluateOnNewDocument", {
-    source: 'window.blocked = []; addEventListener("securitypolicyviolation", (e) => blocked.push(`${e.violatedDirective} ${e.blockedURI}`));',
+    source: `window.violations = []; addEventListener("securitypolicyviolation", (e) => violations.push(e.violatedDirective + " " + e.blockedURI));`,
   });
   await page.goto(viewer.url);
-  await page.waitFor(() => document.querySelectorAll("#doc figure.mermaid .mermaid-svg:not(:empty)").length === 2, { what: "the diagrams to draw" });
+  t.after(() => assert.deepEqual(page.errors, [], "the page threw"));
   return { viewer, page };
 }
 
-test("a mermaid fence draws as an SVG diagram under the page's script policy, with its source in a closed toggle", { skip: chromeMissing }, async (t) => {
-  const { page } = await setup(t);
-  const [good, bad] = await page.eval(() =>
-    [...document.querySelectorAll("#doc figure.mermaid")].map((figure) => ({
-      svg: Boolean(figure.querySelector(".mermaid-svg > svg")),
-      labels: [...figure.querySelectorAll(".mermaid-svg .nodeLabel")].map((n) => n.textContent).sort(),
-      failed: figure.classList.contains("mermaid-failed"),
-      block: figure.dataset.block ?? null,
-      sourceOpen: figure.querySelector("details.mermaid-source").open,
-      source: figure.querySelector("details.mermaid-source pre.code code").textContent,
-    })),
-  );
-  assert.deepEqual(await page.eval(() => window.blocked), []);
-  assert.equal(good.svg, true);
-  assert.deepEqual(good.labels, ["Store", "Viewer", "Writer"]);
-  assert.equal(good.failed, false);
-  assert.notEqual(good.block, null);
-  assert.equal(good.sourceOpen, false);
-  assert.match(good.source, /Writer --> Store/);
+test("mermaid blocks render as diagrams under the strict policy, with their source folded below", { skip: chromeMissing }, async (t) => {
+  const { page } = await setup(t, { "spec.md": SPEC }, "spec.md");
 
-  assert.equal(bad.svg, false);
-  assert.equal(bad.failed, true);
-  assert.match(await page.eval(() => document.querySelectorAll("#doc figure.mermaid .mermaid-svg")[1].textContent), /Couldn't draw this diagram/);
-  // Other code blocks are left as code.
-  assert.equal(await page.eval(() => document.querySelector('#doc pre.code[data-lang="js"]')?.closest("figure") ?? null), null);
-});
-
-test("a comment on a diagram's source anchors to it, waits on the closed source toggle, and opens it", { skip: chromeMissing }, async (t) => {
-  const { page } = await setup(t, {
-    before(viewer) {
-      const file = viewer.file("flow.md");
-      viewer.store.createThread({ file, content: fs.readFileSync(file, "utf8"), quote: "Store --> Viewer", body: "Should this be two-way?", author: HUMAN });
-    },
+  await page.waitFor(() => document.querySelectorAll("#doc figure.mermaid-diagram svg").length === 3, {
+    what: "three diagrams",
+    timeout: 15000,
   });
-  await page.waitFor(() => document.querySelector("#rail .thread"), { what: "the card" });
-  await click(page, "#rail .thread");
-  await page.waitFor(() => document.querySelector("#doc details.mermaid-source").open, { what: "the source to open" });
-  assert.deepEqual(await highlighted(page, "active"), ["Store --> Viewer"]);
+  const result = await page.eval(() => ({
+    kinds: [...document.querySelectorAll("#doc figure.mermaid-diagram svg")].map((svg) => svg.getAttribute("aria-roledescription")),
+    labels: document.querySelector("#doc figure.mermaid-diagram svg").textContent,
+    sources: [...document.querySelectorAll("#doc details.mermaid-source")].map((d) => ({
+      open: d.open,
+      block: d.querySelector("pre.code[data-lang=mermaid]")?.dataset.block ?? null,
+    })),
+    violations: window.violations,
+    scripts: [...document.scripts].map((s) => new URL(s.src).pathname),
+  }));
+
+  assert.deepEqual(result.kinds, ["flowchart-v2", "sequence", "stateDiagram"]);
+  assert.match(result.labels, /Bot picks it up/);
+  assert.equal(result.sources.length, 3);
+  for (const source of result.sources) {
+    assert.equal(source.open, false);
+    assert.notEqual(source.block, null);
+  }
+  assert.deepEqual(result.violations, []);
+  assert.ok(result.scripts.every((p) => p.startsWith("/static/js/")), result.scripts.join());
 });
 
-test("only mermaid's own ES module build is served from /static/js/vendor/", async (t) => {
-  const viewer = await startViewer({ files: { "flow.md": FLOW }, initial: "flow.md", port: 47465 });
-  t.after(() => viewer.close());
-  const get = async (p) => (await fetch(new URL(p, viewer.url))).status;
-  assert.equal(await get("/static/js/vendor/mermaid/mermaid.esm.min.mjs"), 200);
-  assert.equal(await get("/static/js/vendor/mermaid/mermaid.js"), 404);
-  assert.equal(await get("/static/js/vendor/mermaid/../../../../package.json"), 404);
-  assert.equal(await get("/static/js/vendor/mermaid/%2e%2e/package.json"), 404);
+test("a diagram that does not parse says so and shows its source", { skip: chromeMissing }, async (t) => {
+  const { page } = await setup(t, { "broken.md": BROKEN }, "broken.md");
+
+  await page.waitFor(() => document.querySelector("#doc figure.mermaid-diagram.failed"), { what: "the failure", timeout: 15000 });
+  const result = await page.eval(() => ({
+    text: document.querySelector("#doc figure.mermaid-diagram").textContent,
+    open: document.querySelector("#doc details.mermaid-source").open,
+    strays: document.querySelectorAll("body > :not(header, .layout, .progress, .toast, .comment-btn, .composer, .versions-menu, svg[hidden], script)").length,
+  }));
+  assert.match(result.text, /did not render/);
+  assert.equal(result.open, true);
+  assert.equal(result.strays, 0);
+});
+
+test("switching the theme redraws diagrams, and live reload keeps them without a flash", { skip: chromeMissing }, async (t) => {
+  const { page, viewer } = await setup(t, { "spec.md": SPEC }, "spec.md");
+  const diagrams = () => [...document.querySelectorAll("#doc figure.mermaid-diagram svg")].map((svg) => svg.outerHTML.replace(/mermaid-\d+/g, ""));
+  await page.waitFor(() => document.querySelectorAll("#doc figure.mermaid-diagram svg").length === 3, { what: "diagrams", timeout: 15000 });
+  const light = await page.eval(diagrams);
+
+  while ((await page.eval(() => document.documentElement.dataset.theme)) !== "dark") await click(page, "#theme");
+  await page.waitFor(
+    (before) => {
+      const now = [...document.querySelectorAll("#doc figure.mermaid-diagram svg")].map((svg) => svg.outerHTML.replace(/mermaid-\d+/g, ""));
+      return now.length === 3 && now.every((html, i) => html !== before[i]);
+    },
+    { what: "the dark redraw" },
+    light,
+  );
+
+  await viewer.write("spec.md", SPEC.replace("The end.", "The end, edited."));
+  await page.waitFor(() => document.querySelector("#doc").textContent.includes("The end, edited."), { what: "the reload" });
+  // Synchronously after the reload replaced the article, so the diagrams came back from the cache.
+  assert.equal(await page.eval(() => document.querySelectorAll("#doc figure.mermaid-diagram svg").length), 3);
+});
+
+test("a comment on a diagram's source still highlights its quote there", { skip: chromeMissing }, async (t) => {
+  const { page, viewer } = await setup(t, { "spec.md": SPEC }, "spec.md");
+  const file = viewer.file("spec.md");
+  viewer.store.createThread({ file, content: fs.readFileSync(file, "utf8"), quote: "Bot picks it up", body: "Which bot?", author: HUMAN });
+  await page.waitFor(() => CSS.highlights.get("mdview-comment-open")?.size === 1, { what: "the highlight", timeout: 10000 });
+  const text = await page.eval(() => [...CSS.highlights.get("mdview-comment-open")][0].toString());
+  assert.equal(text, "Bot picks it up");
 });
