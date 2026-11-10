@@ -10,7 +10,7 @@ import { activate, deactivate, jumpToThread, openClickedCard, openThreadMenu, re
 import { closeVersionsMenu, toggleVersionsMenu } from "./topbar.js";
 
 export { forgetRanges, loadComments, resetComments } from "./model.js";
-export { onLayoutChange } from "./rail.js";
+export { jumpToThread, onLayoutChange } from "./rail.js";
 
 export function initComments() {
   state.comments.enabled = Boolean(state.info.comments);

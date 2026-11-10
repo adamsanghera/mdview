@@ -62,6 +62,8 @@ mdview comments wait docs/                             # returns the moment anyt
 
 Agents reply and suggest that a thread is resolved. Only you resolve or reopen one, in the viewer, or with `--human` in a terminal. **✓ Resolve** sits in every card's header, so a thread resolves in one click without opening it. A suggested thread turns green, and replying to it reopens it. A thread the agent answered shows **Your turn** with a blue edge.
 
+**Waiting on you** sits at the top of the file list, with a count of every unresolved thread whose next word is yours: an agent answered it, or suggested resolving it. Each doc in the list shows its own count, and a closed folder sums the docs inside it. The link opens `/inbox`, which lists those threads by doc, each with its quote and the last thing said, and opens the thread in its doc when you click it. It lists what `mdview comments list <root> --waiting-on human` does, and both update as agents answer. It tracks whose turn a thread is, not what you have read.
+
 In a comment or reply box, Enter starts a new line, and ⇧Enter or ⌘Enter submits. Clicking a card opens it in place, with its reply box focused, and scrolls its text level with it. The switch at the top of the margin flips between cards **Beside text** and a **List** of every thread, grouped by whose turn it is. Once a doc has had a comment, the margin stays when you resolve the last one, so the text does not move sideways.
 
 While you write a comment, live reload waits, so the text never moves under it (the dot turns amber), and the comment anchors to the version you selected in even if an agent edited the file meanwhile.

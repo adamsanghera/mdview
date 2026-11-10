@@ -8,11 +8,12 @@
  * them. Keeping it one-way is what lets each part be read, and tested, alone.
  */
 import { composerOpen } from "./comments/composer.js";
-import { forgetRanges, initComments, loadComments, onLayoutChange, resetComments } from "./comments/index.js";
+import { forgetRanges, initComments, jumpToThread, loadComments, onLayoutChange, resetComments } from "./comments/index.js";
 import { $, copyText, getJson, toast } from "./dom.js";
 import { docHooks, loadDoc, renderMeta, showError, watchToggles } from "./doc.js";
-import { encodePath, relFromPathname, versionFromSearch } from "./lib/paths.js";
-import { watchNavigation } from "./nav.js";
+import { showInbox } from "./inbox.js";
+import { encodePath, relFromPathname, threadFromSearch, versionFromSearch } from "./lib/paths.js";
+import { navHooks, watchNavigation } from "./nav.js";
 import { scheduleScrollUpdate, updateScroll } from "./scroll.js";
 import { watchShortcuts } from "./shortcuts.js";
 import { refreshTree, renderTree, sidebarHooks, toggleSidebar } from "./sidebar.js";
@@ -23,8 +24,13 @@ import { applyTheme, cycleTheme, PREFERS_DARK } from "./theme.js";
 docHooks.leaving = resetComments;
 docHooks.replaced = forgetRanges;
 docHooks.loaded = loadComments;
-docHooks.commentsChanged = loadComments;
+docHooks.commentsChanged = () => {
+  loadComments();
+  refreshTree();
+};
 docHooks.holdReload = composerOpen;
+navHooks.inbox = showInbox;
+navHooks.thread = jumpToThread;
 sidebarHooks.resized = () => {
   onLayoutChange();
   layoutTables();
@@ -58,12 +64,15 @@ async function init() {
     const [info, tree] = await Promise.all([getJson("/api/info"), getJson("/api/tree")]);
     state.info = info;
     state.files = tree.files;
+    state.waiting = tree.waiting ?? {};
   } catch (err) {
     showError("", err);
     return;
   }
   initComments();
   renderTree();
+  if (location.pathname === "/inbox") return showInbox();
+  state.comments.activateAfterLoad = threadFromSearch(location.search);
   await loadDoc(relFromPathname(location.pathname), { version: versionFromSearch(location.search) });
 }
 

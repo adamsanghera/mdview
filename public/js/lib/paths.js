@@ -12,6 +12,11 @@ export function relFromPathname(pathname) {
   }
 }
 
+/** The thread a URL asks to open (?thread=12), or null. */
+export function threadFromSearch(search) {
+  return Number(new URLSearchParams(search).get("thread")) || null;
+}
+
 /** The stored version a URL asks for (?v=3), or null for the file as it is now. */
 export function versionFromSearch(search) {
   return Number(new URLSearchParams(search).get("v")) || null;

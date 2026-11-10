@@ -56,6 +56,11 @@
         <input id="filter" type="search" placeholder="Filter files" autocomplete="off" spellcheck="false" aria-label="Filter files">
         <kbd>/</kbd>
       </div>
+      <a class="inbox-link" id="inbox-link" href="/inbox" title="Every thread waiting on you" hidden>
+        <svg class="icon" aria-hidden="true"><use href="#i-comment"/></svg>
+        <span>Waiting on you</span>
+        <span class="waiting-badge" id="inbox-count"></span>
+      </a>
       <nav id="tree" aria-label="Files"></nav>
     </aside>
     <main class="content">
