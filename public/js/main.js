@@ -12,6 +12,7 @@ import { forgetRanges, initComments, loadComments, onLayoutChange, resetComments
 import { $, copyText, getJson, toast } from "./dom.js";
 import { docHooks, loadDoc, renderMeta, showError, watchToggles } from "./doc.js";
 import { encodePath, relFromPathname, versionFromSearch } from "./lib/paths.js";
+import { closeLightbox, watchImages } from "./lightbox.js";
 import { watchNavigation } from "./nav.js";
 import { scheduleScrollUpdate, updateScroll } from "./scroll.js";
 import { watchShortcuts } from "./shortcuts.js";
@@ -20,7 +21,10 @@ import { state } from "./state.js";
 import { layoutTables, scheduleTableLayout } from "./tables.js";
 import { applyTheme, cycleTheme, PREFERS_DARK } from "./theme.js";
 
-docHooks.leaving = resetComments;
+docHooks.leaving = () => {
+  closeLightbox();
+  resetComments();
+};
 docHooks.replaced = forgetRanges;
 docHooks.loaded = loadComments;
 docHooks.commentsChanged = loadComments;
@@ -51,6 +55,7 @@ async function init() {
   addEventListener("resize", scheduleTableLayout);
   watchToggles();
   watchNavigation();
+  watchImages();
   watchShortcuts();
   setInterval(renderMeta, 30_000);
 
