@@ -141,6 +141,14 @@
 .doc details:not(.frontmatter) > :last-child { margin-bottom: 0; }
 .doc li.toggle > details > :is(p, ul, ol) { margin: 0.3em 0 0; }
 
+/* A ```mermaid block: its diagram, with the source in a toggle below it. */
+.doc .mermaid-block { margin: 0 0 1.1em; }
+.doc .mermaid-diagram { margin: 0 0 0.4em; overflow-x: auto; text-align: center; }
+.doc .mermaid-diagram svg { max-width: 100%; height: auto; }
+.doc .mermaid-diagram.failed { text-align: left; color: var(--text-soft); font-size: var(--text-sm); }
+.doc details.mermaid-source { margin: 0; }
+.doc details.mermaid-source > summary { color: var(--text-faint); font-size: var(--text-sm); }
+
 .doc .footnotes { margin-top: 3em; font-size: 0.9em; color: var(--text-soft); }
 
 .frontmatter {

@@ -3,6 +3,7 @@
 A local Markdown reader. Point it at a file or a folder, and it opens a browser tab with:
 
 - GitHub-flavored rendering: tables, task lists, footnotes and syntax-highlighted code
+- ` ```mermaid ` blocks drawn as diagrams, in the page's theme, with their source folded below each
 - Notion-style toggle lists: a bullet that starts with `> ` folds away the rest of its item until you open it (example below)
 - a file sidebar you can filter, and an "On this page" outline that follows your scroll
 - relative links between documents that open in the viewer, with images served alongside

@@ -12,6 +12,7 @@ import { forgetRanges, initComments, loadComments, onLayoutChange, resetComments
 import { $, copyText, getJson, toast } from "./dom.js";
 import { docHooks, loadDoc, renderMeta, showError, watchToggles } from "./doc.js";
 import { encodePath, relFromPathname, versionFromSearch } from "./lib/paths.js";
+import { watchDiagramTheme } from "./mermaid.js";
 import { watchNavigation } from "./nav.js";
 import { scheduleScrollUpdate, updateScroll } from "./scroll.js";
 import { watchShortcuts } from "./shortcuts.js";
@@ -50,6 +51,7 @@ async function init() {
   addEventListener("resize", onLayoutChange);
   addEventListener("resize", scheduleTableLayout);
   watchToggles();
+  watchDiagramTheme();
   watchNavigation();
   watchShortcuts();
   setInterval(renderMeta, 30_000);
