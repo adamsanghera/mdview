@@ -1,0 +1,32 @@
+/* A picture opened over the page (lightbox.js). The dialog fills the viewport, so a click off the picture lands on it and closes it. */
+.lightbox {
+  width: 100vw;
+  height: 100vh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 48px;
+  border: 0;
+  background: transparent;
+  cursor: zoom-out;
+}
+.lightbox[open] { display: grid; place-items: center; }
+.lightbox::backdrop { background: rgba(0, 0, 0, 0.78); }
+.lightbox img {
+  max-width: 100%;
+  max-height: calc(100vh - 96px);
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  background: var(--bg);
+  cursor: default;
+}
+.lightbox-close {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  color: #ffffff;
+  font-size: 22px;
+  line-height: 1;
+}
+.lightbox-close:hover { background: rgba(255, 255, 255, 0.14); color: #ffffff; }

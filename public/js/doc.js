@@ -49,9 +49,6 @@ function enhance(article) {
     });
     pre.append(button);
   }
-  for (const img of article.querySelectorAll("img")) {
-    img.addEventListener("click", () => window.open(img.src, "_blank", "noopener"));
-  }
 }
 
 function renderToc(toc) {
