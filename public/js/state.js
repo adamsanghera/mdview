@@ -11,6 +11,8 @@ function readJson(key, fallback) {
 export const state = {
   info: null,
   files: [],
+  /** Threads waiting on the human, by root-relative doc path. Docs with none are left out. */
+  waiting: {},
   doc: null,
   headings: [],
   events: null,

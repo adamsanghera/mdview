@@ -154,3 +154,23 @@
 
 .doc-error { color: var(--text-soft); }
 .doc-error code { color: var(--text); }
+
+/* The inbox page (/inbox): threads waiting on the human, by doc. */
+.doc .inbox-summary, .doc .inbox-empty { color: var(--text-soft); }
+.doc .inbox-doc h2 { font-size: 1.05em; }
+.doc .inbox-doc h2 a { font-family: var(--mono); font-weight: 600; }
+.doc ul.inbox-threads { list-style: none; padding: 0; }
+.doc .inbox-thread {
+  margin: 0 0 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--state-turn);
+  border-radius: var(--radius-md);
+}
+.doc .inbox-thread.suggested { border-left-color: var(--state-suggested); }
+.doc .inbox-open { font-size: var(--text-md); text-decoration: none; }
+.doc .inbox-turn { font-weight: 600; }
+.doc .inbox-thread .thread-quote { margin: 6px 0; font-size: var(--text-md); }
+.doc .inbox-last { margin: 0; font-size: var(--text-md); color: var(--text-soft); }
+.doc .inbox-author { font-weight: 600; color: var(--text); }
+.doc .inbox-when { color: var(--text-faint); }

@@ -90,6 +90,29 @@ export function showError(rel, err) {
   root.classList.add("no-toc");
 }
 
+/**
+ * Shows a page of mdview's own, not a doc: `html` in the article, with
+ * `title` in the header. The doc shown before is left, as for any other doc.
+ */
+export function showPage({ title, html }) {
+  if (state.doc) docHooks.leaving();
+  state.doc = null;
+  setReloadWaiting(false);
+  state.events?.source.close();
+  state.events = null;
+  $("#live").classList.remove("on");
+  $("#doc").innerHTML = html;
+  $("#toc").innerHTML = "";
+  $("#meta").textContent = "";
+  root.classList.add("no-toc");
+  const crumbs = $("#crumbs");
+  crumbs.innerHTML = `<span class="here">${escapeHtml(title)}</span>`;
+  crumbs.title = "";
+  crumbs.setAttribute("aria-label", title);
+  document.title = `${title} · mdview`;
+  renderTree();
+}
+
 export function scrollToHash(hash, behavior = "smooth") {
   if (!hash || hash === "#") return;
   let id = hash.slice(1);

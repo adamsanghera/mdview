@@ -26,6 +26,32 @@ export function showSidebar() {
   else if (root.classList.contains("no-sidebar")) toggleSidebar();
 }
 
+/** A count of threads waiting on the human, or nothing when there are none. */
+function waitingBadge(count) {
+  if (!count) return null;
+  const badge = document.createElement("span");
+  badge.className = "waiting-badge";
+  badge.textContent = String(count);
+  badge.title = `${count} ${count === 1 ? "thread waits" : "threads wait"} on you`;
+  return badge;
+}
+
+/** How many threads wait on the human in docs under the folder `dirPath`. */
+function waitingUnder(dirPath) {
+  let total = 0;
+  for (const [file, count] of Object.entries(state.waiting)) if (file.startsWith(`${dirPath}/`)) total += count;
+  return total;
+}
+
+/** The sidebar's link to the inbox, with how many threads wait on the human in all. */
+function renderInboxLink() {
+  const link = $("#inbox-link");
+  link.hidden = !state.info?.comments;
+  const total = Object.values(state.waiting).reduce((sum, n) => sum + n, 0);
+  $("#inbox-count").textContent = total ? String(total) : "";
+  link.classList.toggle("active", location.pathname === "/inbox");
+}
+
 function renderNode(node, prefix, expandAll) {
   const list = document.createElement("ul");
   for (const [name, child] of node.dirs) {
@@ -36,6 +62,8 @@ function renderNode(node, prefix, expandAll) {
     button.className = "dir-label";
     button.setAttribute("aria-expanded", String(open));
     button.innerHTML = `${CHEVRON}<span>${escapeHtml(name)}</span>`;
+    // An open folder shows its docs' badges, so only a closed one sums them.
+    if (!open) button.append(waitingBadge(waitingUnder(dirPath)) ?? "");
     button.addEventListener("click", () => {
       if (state.expanded.has(dirPath)) state.expanded.delete(dirPath);
       else state.expanded.add(dirPath);
@@ -55,6 +83,8 @@ function renderNode(node, prefix, expandAll) {
     link.dataset.path = file;
     link.textContent = file.split("/").pop().replace(/\.(md|markdown|mdx)$/i, "");
     if (file === state.doc?.path) link.classList.add("active");
+    const badge = waitingBadge(state.waiting[file]);
+    if (badge) link.append(badge);
     item.append(link);
     list.append(item);
   }
@@ -62,6 +92,7 @@ function renderNode(node, prefix, expandAll) {
 }
 
 export function renderTree() {
+  renderInboxLink();
   const query = $("#filter").value.trim().toLowerCase();
   const files = query ? state.files.filter((f) => f.toLowerCase().includes(query)) : state.files;
   const nav = $("#tree");
@@ -95,7 +126,9 @@ export function revealActiveFile() {
 
 export async function refreshTree() {
   try {
-    state.files = (await getJson("/api/tree")).files;
+    const tree = await getJson("/api/tree");
+    state.files = tree.files;
+    state.waiting = tree.waiting ?? {};
     renderTree();
   } catch {
     // The server may be restarting. The next focus or change retries.
